@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.config.settings import APP_FULL_NAME, APP_NAME, APP_VERSION, DB_PATH, ensure_data_dirs
 from app.crypto.encrypt import CRYPTO_FORMAT_VERSION, FILE_FORMAT
+from app.error_messages import user_error_message
 from app.services.audit_service import get_audit_entries, init_audit_log
 from app.services.contact_service import (
     get_all_contacts,
@@ -52,28 +53,12 @@ def _prompt_private_key_passphrase() -> bytes:
     return passphrase.encode("utf-8")
 
 
-def _user_error_message(exc: Exception) -> str:
-    if isinstance(exc, FileExistsError):
-        return "Output file already exists. Choose a different output path."
-    if isinstance(exc, PermissionError):
-        return "Permission denied while accessing a file or directory. Check the path permissions."
-    if isinstance(exc, FileNotFoundError):
-        return "File or directory not found. Check the path and try again."
-    if isinstance(exc, IsADirectoryError):
-        return "Expected a file path but received a directory path."
-    if isinstance(exc, ValueError):
-        return str(exc)
-    if isinstance(exc, OSError):
-        return f"File system error: {exc}"
-    return str(exc)
-
-
 def cmd_init_user_key(args: argparse.Namespace) -> int:
     try:
         passphrase = _prompt_new_passphrase()
         record = initialize_user_key(args.display_name, args.email, passphrase=passphrase, overwrite=args.overwrite)
     except Exception as exc:
-        print(f"Key generation failed: {_user_error_message(exc)}", file=sys.stderr)
+        print(f"Key generation failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
     _print_security_warnings()
     print(f"Created local private key and public key record for {record['email']}.")
@@ -88,7 +73,7 @@ def cmd_export_public_key(args: argparse.Namespace) -> int:
         print("Public keys may be shared, but the receiver should verify the fingerprint with you.")
         return 0
     except Exception as exc:
-        print(f"Public key export failed: {_user_error_message(exc)}", file=sys.stderr)
+        print(f"Public key export failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
 
 
@@ -98,7 +83,7 @@ def cmd_import_contact_key(args: argparse.Namespace) -> int:
     try:
         record = import_contact_key(Path(args.key_file), verified=verified, db_path=DB_PATH)
     except Exception as exc:
-        print(f"Contact key import failed: {_user_error_message(exc)}", file=sys.stderr)
+        print(f"Contact key import failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
     print(f"Importing public key for {record['display_name']} <{record['email']}>")
     print(f"Fingerprint: {record['key_fingerprint']}")
@@ -158,16 +143,16 @@ def cmd_encrypt_file(args: argparse.Namespace) -> int:
                 return 1
 
     try:
-        output_path = encrypt_file_for_recipient(
+        result = encrypt_file_for_recipient(
             input_path,
             args.recipient_email,
             Path(args.output) if args.output else None,
             db_path=DB_PATH,
         )
-        print(f"Encrypted file written to: {output_path}")
+        print(f"Encrypted file written to: {result['output_path']}")
         return 0
     except Exception as exc:
-        print(f"Encryption failed: {_user_error_message(exc)}", file=sys.stderr)
+        print(f"Encryption failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
 
 
@@ -176,16 +161,16 @@ def cmd_decrypt_file(args: argparse.Namespace) -> int:
     input_path = Path(args.input_file)
     try:
         passphrase = _prompt_private_key_passphrase()
-        output_path = decrypt_received_file(
+        result = decrypt_received_file(
             input_path,
             passphrase,
             Path(args.output) if args.output else None,
             db_path=DB_PATH,
         )
-        print(f"Decrypted file written to: {output_path}")
+        print(f"Decrypted file written to: {result['output_path']}")
         return 0
     except Exception as exc:
-        print(f"Decryption failed: {_user_error_message(exc)}", file=sys.stderr)
+        print(f"Decryption failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
 
 

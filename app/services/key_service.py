@@ -17,6 +17,7 @@ def initialize_user_key(
     private_key_path: Path = PRIVATE_KEY_PATH,
     public_key_record_path: Path = PUBLIC_KEY_RECORD_PATH,
 ) -> dict:
+    """Create encrypted local key material and return the public key record."""
     return generate_user_key_pair(
         display_name,
         email,

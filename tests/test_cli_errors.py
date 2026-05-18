@@ -1,21 +1,22 @@
 import unittest
 
-from app.main import _user_error_message
+from app.error_messages import user_error_message
+from app.exceptions import OutputExistsError, PermissionDeniedError
 
 
 class CliErrorMessageTests(unittest.TestCase):
     def test_existing_output_error_is_user_facing(self):
-        message = _user_error_message(FileExistsError("already exists"))
+        message = user_error_message(OutputExistsError("already exists"))
 
         self.assertEqual(message, "Output file already exists. Choose a different output path.")
 
     def test_missing_input_error_is_user_facing(self):
-        message = _user_error_message(FileNotFoundError("missing"))
+        message = user_error_message(FileNotFoundError("missing"))
 
         self.assertEqual(message, "File or directory not found. Check the path and try again.")
 
     def test_permission_error_is_user_facing(self):
-        message = _user_error_message(PermissionError("denied"))
+        message = user_error_message(PermissionDeniedError("denied"))
 
         self.assertEqual(message, "Permission denied while accessing a file or directory. Check the path permissions.")
 

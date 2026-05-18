@@ -14,6 +14,7 @@ from app.config.settings import (
     PUBLIC_KEY_RECORD_PATH,
     ensure_data_dirs,
 )
+from app.exceptions import InvalidPublicKeyError, PrivateKeyUnlockError
 from app.crypto.fingerprint import calculate_fingerprint
 
 
@@ -35,15 +36,15 @@ def validate_public_key_text(public_key_text: str) -> str:
     try:
         raw_key = base64.b64decode(public_key_text.encode("ascii"), validate=True)
     except (UnicodeEncodeError, binascii.Error) as exc:
-        raise ValueError("Public key is not valid base64.") from exc
+        raise InvalidPublicKeyError("Public key is not valid base64.") from exc
 
     if len(raw_key) != 32:
-        raise ValueError("Public key must decode to 32 bytes for X25519.")
+        raise InvalidPublicKeyError("Public key must decode to 32 bytes for X25519.")
 
     try:
         public_key = x25519.X25519PublicKey.from_public_bytes(raw_key)
     except ValueError as exc:
-        raise ValueError("Public key is not a valid X25519 public key.") from exc
+        raise InvalidPublicKeyError("Public key is not a valid X25519 public key.") from exc
 
     return _public_key_to_text(public_key)
 
@@ -54,14 +55,14 @@ def load_private_key(
 ) -> x25519.X25519PrivateKey:
     key_bytes = private_key_path.read_bytes()
     if b"BEGIN PRIVATE KEY" in key_bytes and b"BEGIN ENCRYPTED PRIVATE KEY" not in key_bytes:
-        raise ValueError(
+        raise PrivateKeyUnlockError(
             "Unencrypted private keys from older MVP versions are not supported. "
             "Regenerate your EFE key pair."
         )
     try:
         return serialization.load_pem_private_key(key_bytes, password=passphrase)
     except (TypeError, ValueError) as exc:
-        raise ValueError("Could not unlock the private key. Check the passphrase.") from exc
+        raise PrivateKeyUnlockError("Could not unlock the private key. Check the passphrase.") from exc
 
 
 def generate_user_key_pair(
@@ -115,12 +116,12 @@ def load_public_key_record(path: Path) -> dict[str, str]:
     required = {"display_name", "email", "public_key", "key_fingerprint", "created_at"}
     missing = required - set(record)
     if missing:
-        raise ValueError(f"Public key record is missing: {', '.join(sorted(missing))}")
+        raise InvalidPublicKeyError(f"Public key record is missing: {', '.join(sorted(missing))}")
 
     canonical_public_key = validate_public_key_text(record["public_key"])
     calculated = calculate_fingerprint(canonical_public_key)
     if calculated != record["key_fingerprint"]:
-        raise ValueError("Public key fingerprint does not match the key material.")
+        raise InvalidPublicKeyError("Public key fingerprint does not match the key material.")
     record["public_key"] = canonical_public_key
     return record
 
