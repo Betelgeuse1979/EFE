@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from app.crypto.decrypt import decrypt_file
 from app.crypto.encrypt import encrypt_file_for_contact
@@ -80,6 +81,18 @@ class EncryptDecryptTests(unittest.TestCase):
 
         self._assert_decrypt_fails_without_plaintext(encrypted, decrypted)
 
+    def test_tampered_ciphertext_has_clear_error_message(self):
+        encrypted, decrypted = self._make_encrypted_file()
+        payload = self._read_payload(encrypted)
+        ciphertext = bytearray(base64.b64decode(payload["ciphertext"]))
+        ciphertext[0] ^= 1
+        payload["ciphertext"] = base64.b64encode(ciphertext).decode("ascii")
+        self._write_payload(encrypted, payload)
+
+        with self.assertRaisesRegex(ValueError, "tampered with, corrupted"):
+            decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+        self.assertFalse(decrypted.exists())
+
     def test_tampered_header_metadata_fails_without_plaintext_output(self):
         encrypted, decrypted = self._make_encrypted_file()
         payload = self._read_payload(encrypted)
@@ -127,6 +140,13 @@ class EncryptDecryptTests(unittest.TestCase):
 
         self._assert_decrypt_fails_without_plaintext(encrypted, decrypted)
 
+    def test_invalid_json_file_has_clear_error_message(self):
+        encrypted, decrypted = self._make_encrypted_file()
+        encrypted.write_text("{not valid json", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "not valid JSON"):
+            decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+
     def test_missing_required_header_field_fails_without_plaintext_output(self):
         encrypted, decrypted = self._make_encrypted_file()
         payload = self._read_payload(encrypted)
@@ -135,6 +155,15 @@ class EncryptDecryptTests(unittest.TestCase):
 
         self._assert_decrypt_fails_without_plaintext(encrypted, decrypted)
 
+    def test_missing_required_header_field_has_clear_error_message(self):
+        encrypted, decrypted = self._make_encrypted_file()
+        payload = self._read_payload(encrypted)
+        del payload["header"]["nonce"]
+        self._write_payload(encrypted, payload)
+
+        with self.assertRaisesRegex(ValueError, "header is missing: nonce"):
+            decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+
     def test_invalid_base64_ciphertext_fails_without_plaintext_output(self):
         encrypted, decrypted = self._make_encrypted_file()
         payload = self._read_payload(encrypted)
@@ -142,6 +171,87 @@ class EncryptDecryptTests(unittest.TestCase):
         self._write_payload(encrypted, payload)
 
         self._assert_decrypt_fails_without_plaintext(encrypted, decrypted)
+
+    def test_invalid_base64_ciphertext_has_clear_error_message(self):
+        encrypted, decrypted = self._make_encrypted_file()
+        payload = self._read_payload(encrypted)
+        payload["ciphertext"] = "not valid base64!!!!"
+        self._write_payload(encrypted, payload)
+
+        with self.assertRaisesRegex(ValueError, "Invalid base64 value for ciphertext"):
+            decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+
+    def test_failed_encrypt_atomic_replace_leaves_no_partial_output(self):
+        contact = generate_user_key_pair(
+            "Bob Example",
+            "bob@example.com",
+            passphrase=self.passphrase,
+            private_key_path=self.private_key_path,
+            public_key_record_path=self.public_key_path,
+        )
+        source = self.root / "message.txt"
+        encrypted = self.root / "message.txt.efe"
+        source.write_text("hello from efe", encoding="utf-8")
+
+        with patch("app.file_io.os.replace", side_effect=PermissionError("replace denied")):
+            with self.assertRaises(PermissionError):
+                encrypt_file_for_contact(source, contact, encrypted)
+
+        self.assertFalse(encrypted.exists())
+        leftovers = [path for path in self.root.iterdir() if path.name not in {"message.txt", "private.pem", "public.json"}]
+        self.assertEqual(leftovers, [])
+
+    def test_failed_decrypt_atomic_replace_leaves_no_plaintext_output(self):
+        encrypted, decrypted = self._make_encrypted_file()
+
+        with patch("app.file_io.os.replace", side_effect=PermissionError("replace denied")):
+            with self.assertRaises(PermissionError):
+                decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+
+        self.assertFalse(decrypted.exists())
+
+    def test_existing_encrypted_output_is_not_overwritten(self):
+        contact = generate_user_key_pair(
+            "Bob Example",
+            "bob@example.com",
+            passphrase=self.passphrase,
+            private_key_path=self.private_key_path,
+            public_key_record_path=self.public_key_path,
+        )
+        source = self.root / "message.txt"
+        encrypted = self.root / "message.txt.efe"
+        source.write_text("hello from efe", encoding="utf-8")
+        encrypted.write_text("existing encrypted data", encoding="utf-8")
+
+        with self.assertRaises(FileExistsError):
+            encrypt_file_for_contact(source, contact, encrypted)
+
+        self.assertEqual(encrypted.read_text(encoding="utf-8"), "existing encrypted data")
+
+    def test_existing_decrypted_output_is_not_overwritten(self):
+        encrypted, decrypted = self._make_encrypted_file()
+        decrypted.write_text("existing plaintext", encoding="utf-8")
+
+        with self.assertRaises(FileExistsError):
+            decrypt_file(encrypted, decrypted, private_key_path=self.private_key_path, passphrase=self.passphrase)
+
+        self.assertEqual(decrypted.read_text(encoding="utf-8"), "existing plaintext")
+
+    def test_missing_input_file_fails_without_output(self):
+        contact = generate_user_key_pair(
+            "Bob Example",
+            "bob@example.com",
+            passphrase=self.passphrase,
+            private_key_path=self.private_key_path,
+            public_key_record_path=self.public_key_path,
+        )
+        missing = self.root / "missing.txt"
+        encrypted = self.root / "missing.txt.efe"
+
+        with self.assertRaises(FileNotFoundError):
+            encrypt_file_for_contact(missing, contact, encrypted)
+
+        self.assertFalse(encrypted.exists())
 
 
 if __name__ == "__main__":

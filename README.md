@@ -1,6 +1,6 @@
 # efe
 
-efe, short for Encrypted File Exchange, is a local desktop/CLI MVP for encrypting and decrypting email attachments. It does not replace Outlook, Gmail, or any other email client. You encrypt a file locally, then manually attach the encrypted file to your normal email.
+efe, short for Encrypted File Exchange, is a local CLI MVP for encrypting and decrypting email attachments. It does not replace Outlook, Gmail, or any other email client. You encrypt a file locally, then manually attach the encrypted file to your normal email.
 
 ## Security Model
 
@@ -12,6 +12,14 @@ efe, short for Encrypted File Exchange, is a local desktop/CLI MVP for encryptin
 - efe does not upload files or keys to the cloud.
 - efe never stores original file contents in SQLite.
 - Do not put ID numbers, passport numbers, or other sensitive personal identifiers in public key metadata.
+
+## Compliance Positioning
+
+EFE is designed to help reduce the risk of unauthorised access to sensitive files sent through ordinary email.
+
+Under South Africa's POPIA framework, organisations that process personal information are expected to take appropriate and reasonable technical and organisational measures to protect that information. If personal information is accessed or acquired by an unauthorised person, breach-notification obligations may arise.
+
+EFE does not make an organisation automatically POPIA compliant and is not legal advice. It should be seen as one practical technical safeguard within a broader data protection process that may also include policies, staff training, access control, retention rules, incident response, and secure backups.
 
 This MVP uses Python's well-supported `cryptography` package with X25519 and ChaCha20-Poly1305. The crypto backend is intentionally isolated under `app/crypto/` so it can be swapped to `age` or `pyrage` later.
 
@@ -76,10 +84,18 @@ python -m app.main decrypt-file .\data\encrypted\document.pdf.efe
 
 You will be prompted for your private key passphrase.
 
+Encrypted and decrypted outputs are written atomically. If the output file already exists, efe stops and asks you to choose a different output path rather than silently overwriting it.
+
 Show the audit log:
 
 ```powershell
 python -m app.main show-audit-log
+```
+
+Show version information:
+
+```powershell
+python -m app.main version
 ```
 
 ## Public Key Record
@@ -100,7 +116,32 @@ When importing a contact key, efe checks that the public key is valid base64, de
 
 ## Encrypted File Format
 
-Encrypted files use a JSON `.efe` format:
+Encrypted files use a JSON `.efe` format. A `.efe` file is an encrypted attachment or file; it is not an email message and does not contain email client data.
+
+Required top-level fields:
+
+- `header`
+- `ciphertext`
+
+Required header fields:
+
+- `format`
+- `generated_by_app`
+- `app_version`
+- `created_at`
+- `original_filename`
+- `recipient_email`
+- `recipient_key_fingerprint`
+- `ephemeral_public_key`
+- `nonce`
+
+Base64 fields:
+
+- `ciphertext`
+- `header.ephemeral_public_key`
+- `header.nonce`
+
+The full header is authenticated as additional data by ChaCha20-Poly1305. Tampering with any required header field, the ciphertext, the nonce, or the ephemeral public key causes decryption to fail.
 
 ```text
 {
@@ -119,7 +160,7 @@ Encrypted files use a JSON `.efe` format:
 }
 ```
 
-The header is authenticated as additional data. Tampering with the ciphertext or required header fields causes decryption to fail.
+Decryption also fails if the file is invalid JSON, missing required fields, contains invalid base64 values, was encrypted for a different private key, or the private key passphrase is wrong.
 
 ## Data Layout
 

@@ -3,6 +3,7 @@ import binascii
 import json
 from pathlib import Path
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
@@ -10,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 from app.config.settings import DECRYPTED_DIR, ensure_data_dirs
 from app.crypto.encrypt import FILE_FORMAT, _derive_file_key
 from app.crypto.key_manager import load_private_key
+from app.file_io import atomic_write_bytes
 
 REQUIRED_HEADER_FIELDS = {
     "format",
@@ -91,6 +93,13 @@ def decrypt_file(
     nonce = _decode_base64_field(header["nonce"], "nonce")
     header_bytes = json.dumps(header, sort_keys=True).encode("utf-8")
 
-    plaintext = ChaCha20Poly1305(file_key).decrypt(nonce, ciphertext, header_bytes)
-    output_path.write_bytes(plaintext)
+    try:
+        plaintext = ChaCha20Poly1305(file_key).decrypt(nonce, ciphertext, header_bytes)
+    except InvalidTag as exc:
+        raise ValueError(
+            "Decryption failed. The file may be tampered with, corrupted, "
+            "or encrypted for a different private key."
+        ) from exc
+
+    atomic_write_bytes(output_path, plaintext)
     return output_path

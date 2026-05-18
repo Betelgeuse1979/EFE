@@ -81,7 +81,7 @@ class KeyManagerTests(unittest.TestCase):
         }
         self.public_key_path.write_text(json.dumps(record), encoding="utf-8")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, "not valid base64"):
             load_public_key_record(self.public_key_path)
 
     def test_wrong_length_public_key_import_is_rejected(self):

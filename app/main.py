@@ -1,36 +1,26 @@
 import argparse
 import getpass
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
-from app.audit.audit_log import init_audit_db, list_audit_log, log_action
-from app.config.settings import DB_PATH, ensure_data_dirs
-from app.contacts.contacts_db import (
-    add_contact,
-    get_contact_by_email,
-    init_contacts_db,
-    list_contacts,
-    verify_contact_key,
+from app.config.settings import APP_FULL_NAME, APP_NAME, APP_VERSION, DB_PATH, ensure_data_dirs
+from app.crypto.encrypt import CRYPTO_FORMAT_VERSION, FILE_FORMAT
+from app.services.audit_service import get_audit_entries, init_audit_log
+from app.services.contact_service import (
+    get_all_contacts,
+    get_contact,
+    import_contact_key,
+    init_contact_book,
+    mark_contact_verified,
 )
-from app.crypto.decrypt import decrypt_file
-from app.crypto.encrypt import encrypt_file_for_contact
-from app.crypto.key_manager import (
-    export_public_key,
-    generate_user_key_pair,
-    get_private_key_fingerprint,
-    load_public_key_record,
-)
+from app.services.file_crypto_service import decrypt_received_file, encrypt_file_for_recipient
+from app.services.key_service import export_user_public_key, initialize_user_key
 
 
 def _init_db() -> None:
     ensure_data_dirs()
-    init_contacts_db(DB_PATH)
-    init_audit_db(DB_PATH)
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    init_contact_book(DB_PATH)
+    init_audit_log(DB_PATH)
 
 
 def _print_security_warnings() -> None:
@@ -62,12 +52,28 @@ def _prompt_private_key_passphrase() -> bytes:
     return passphrase.encode("utf-8")
 
 
+def _user_error_message(exc: Exception) -> str:
+    if isinstance(exc, FileExistsError):
+        return "Output file already exists. Choose a different output path."
+    if isinstance(exc, PermissionError):
+        return "Permission denied while accessing a file or directory. Check the path permissions."
+    if isinstance(exc, FileNotFoundError):
+        return "File or directory not found. Check the path and try again."
+    if isinstance(exc, IsADirectoryError):
+        return "Expected a file path but received a directory path."
+    if isinstance(exc, ValueError):
+        return str(exc)
+    if isinstance(exc, OSError):
+        return f"File system error: {exc}"
+    return str(exc)
+
+
 def cmd_init_user_key(args: argparse.Namespace) -> int:
     try:
         passphrase = _prompt_new_passphrase()
-        record = generate_user_key_pair(args.display_name, args.email, passphrase=passphrase, overwrite=args.overwrite)
+        record = initialize_user_key(args.display_name, args.email, passphrase=passphrase, overwrite=args.overwrite)
     except Exception as exc:
-        print(f"Key generation failed: {exc}", file=sys.stderr)
+        print(f"Key generation failed: {_user_error_message(exc)}", file=sys.stderr)
         return 1
     _print_security_warnings()
     print(f"Created local private key and public key record for {record['email']}.")
@@ -76,29 +82,34 @@ def cmd_init_user_key(args: argparse.Namespace) -> int:
 
 
 def cmd_export_public_key(args: argparse.Namespace) -> int:
-    export_path = export_public_key(Path(args.output))
-    print(f"Exported public key to: {export_path}")
-    print("Public keys may be shared, but the receiver should verify the fingerprint with you.")
-    return 0
+    try:
+        export_path = export_user_public_key(Path(args.output))
+        print(f"Exported public key to: {export_path}")
+        print("Public keys may be shared, but the receiver should verify the fingerprint with you.")
+        return 0
+    except Exception as exc:
+        print(f"Public key export failed: {_user_error_message(exc)}", file=sys.stderr)
+        return 1
 
 
 def cmd_import_contact_key(args: argparse.Namespace) -> int:
     _init_db()
-    record = load_public_key_record(Path(args.key_file))
+    verified = bool(args.verified or args.confirm_verified)
+    try:
+        record = import_contact_key(Path(args.key_file), verified=verified, db_path=DB_PATH)
+    except Exception as exc:
+        print(f"Contact key import failed: {_user_error_message(exc)}", file=sys.stderr)
+        return 1
     print(f"Importing public key for {record['display_name']} <{record['email']}>")
     print(f"Fingerprint: {record['key_fingerprint']}")
     print("Verify this fingerprint through another channel, such as a phone call, WhatsApp, or in person.")
-    verified = bool(args.verified)
-    if not verified and args.confirm_verified:
-        verified = True
-    add_contact(record, verified=verified)
     print(f"Saved contact key. Verified: {'yes' if verified else 'no'}")
     return 0
 
 
 def cmd_list_contacts(args: argparse.Namespace) -> int:
     _init_db()
-    contacts = list_contacts()
+    contacts = get_all_contacts(DB_PATH)
     if not contacts:
         print("No contacts saved yet.")
         return 0
@@ -111,7 +122,7 @@ def cmd_list_contacts(args: argparse.Namespace) -> int:
 
 def cmd_verify_contact_key(args: argparse.Namespace) -> int:
     _init_db()
-    contact = get_contact_by_email(args.email)
+    contact = get_contact(args.email, DB_PATH)
     if contact is None:
         print(f"No contact found for {args.email}", file=sys.stderr)
         return 1
@@ -123,14 +134,14 @@ def cmd_verify_contact_key(args: argparse.Namespace) -> int:
         if answer != "YES":
             print("Verification cancelled.")
             return 1
-    verify_contact_key(args.email)
+    mark_contact_verified(args.email, DB_PATH)
     print("Contact key marked as verified.")
     return 0
 
 
 def cmd_encrypt_file(args: argparse.Namespace) -> int:
     _init_db()
-    contact = get_contact_by_email(args.recipient_email)
+    contact = get_contact(args.recipient_email, DB_PATH)
     input_path = Path(args.input_file)
     if contact is None:
         print(f"No contact found for {args.recipient_email}", file=sys.stderr)
@@ -147,66 +158,49 @@ def cmd_encrypt_file(args: argparse.Namespace) -> int:
                 return 1
 
     try:
-        output_path = encrypt_file_for_contact(input_path, dict(contact), Path(args.output) if args.output else None)
-        log_action(
-            timestamp=_now(),
-            action_type="encrypt",
-            filename=input_path.name,
-            recipient_email=contact["email"],
-            key_fingerprint=contact["key_fingerprint"],
-            success=True,
+        output_path = encrypt_file_for_recipient(
+            input_path,
+            args.recipient_email,
+            Path(args.output) if args.output else None,
+            db_path=DB_PATH,
         )
         print(f"Encrypted file written to: {output_path}")
         return 0
     except Exception as exc:
-        log_action(
-            timestamp=_now(),
-            action_type="encrypt",
-            filename=input_path.name,
-            recipient_email=args.recipient_email,
-            key_fingerprint=contact["key_fingerprint"],
-            success=False,
-            error_message=str(exc),
-        )
-        print(f"Encryption failed: {exc}", file=sys.stderr)
+        print(f"Encryption failed: {_user_error_message(exc)}", file=sys.stderr)
         return 1
 
 
 def cmd_decrypt_file(args: argparse.Namespace) -> int:
     _init_db()
     input_path = Path(args.input_file)
-    key_fingerprint = None
     try:
         passphrase = _prompt_private_key_passphrase()
-        key_fingerprint = get_private_key_fingerprint(passphrase=passphrase)
-        output_path = decrypt_file(input_path, Path(args.output) if args.output else None, passphrase=passphrase)
-        log_action(
-            timestamp=_now(),
-            action_type="decrypt",
-            filename=input_path.name,
-            recipient_email=None,
-            key_fingerprint=key_fingerprint,
-            success=True,
+        output_path = decrypt_received_file(
+            input_path,
+            passphrase,
+            Path(args.output) if args.output else None,
+            db_path=DB_PATH,
         )
         print(f"Decrypted file written to: {output_path}")
         return 0
     except Exception as exc:
-        log_action(
-            timestamp=_now(),
-            action_type="decrypt",
-            filename=input_path.name,
-            recipient_email=None,
-            key_fingerprint=key_fingerprint,
-            success=False,
-            error_message=str(exc),
-        )
-        print(f"Decryption failed: {exc}", file=sys.stderr)
+        print(f"Decryption failed: {_user_error_message(exc)}", file=sys.stderr)
         return 1
+
+
+def cmd_version(args: argparse.Namespace) -> int:
+    print("EFE")
+    print(APP_FULL_NAME)
+    print(f"App version: {APP_VERSION}")
+    print(f"Crypto format version: {CRYPTO_FORMAT_VERSION}")
+    print(f"Crypto format: {FILE_FORMAT}")
+    return 0
 
 
 def cmd_show_audit_log(args: argparse.Namespace) -> int:
     _init_db()
-    rows = list_audit_log()
+    rows = get_audit_entries(DB_PATH)
     if not rows:
         print("No audit log entries yet.")
         return 0
@@ -263,6 +257,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     audit = subparsers.add_parser("show-audit-log", help="Show encryption/decryption audit entries")
     audit.set_defaults(func=cmd_show_audit_log)
+
+    version = subparsers.add_parser("version", help="Show EFE version information")
+    version.set_defaults(func=cmd_version)
 
     return parser
 

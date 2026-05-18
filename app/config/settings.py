@@ -1,6 +1,7 @@
 from pathlib import Path
 
 APP_NAME = "efe"
+APP_FULL_NAME = "Encrypted File Exchange"
 APP_VERSION = "0.1.0"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

@@ -11,8 +11,10 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from app.config.settings import APP_NAME, APP_VERSION, ENCRYPTED_DIR, ensure_data_dirs
 from app.crypto.key_manager import public_key_from_text
+from app.file_io import atomic_write_text
 
 FILE_FORMAT = "efe-X25519-ChaCha20Poly1305-v1"
+CRYPTO_FORMAT_VERSION = "v1"
 
 
 def _derive_file_key(shared_secret: bytes, ephemeral_public_key: bytes, recipient_public_key: str) -> bytes:
@@ -58,5 +60,5 @@ def encrypt_file_for_contact(input_path: Path, contact: dict, output_path: Path 
         "header": header,
         "ciphertext": base64.b64encode(ciphertext).decode("ascii"),
     }
-    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    atomic_write_text(output_path, json.dumps(payload, indent=2))
     return output_path
