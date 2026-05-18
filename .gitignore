@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+data/efe.db
+data/keys/*
+data/encrypted/*
+data/decrypted/*
+!data/keys/.gitkeep
+!data/encrypted/.gitkeep
+!data/decrypted/.gitkeep

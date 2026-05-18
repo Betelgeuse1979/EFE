@@ -1,0 +1,141 @@
+# efe
+
+efe, short for Encrypted File Exchange, is a local desktop/CLI MVP for encrypting and decrypting email attachments. It does not replace Outlook, Gmail, or any other email client. You encrypt a file locally, then manually attach the encrypted file to your normal email.
+
+## Security Model
+
+- Public keys may be shared.
+- Private keys must never be shared.
+- Private keys are encrypted at rest with a passphrase.
+- Losing your private key or passphrase may make encrypted files unrecoverable.
+- A public key fingerprint should be verified before trusting the key.
+- efe does not upload files or keys to the cloud.
+- efe never stores original file contents in SQLite.
+- Do not put ID numbers, passport numbers, or other sensitive personal identifiers in public key metadata.
+
+This MVP uses Python's well-supported `cryptography` package with X25519 and ChaCha20-Poly1305. The crypto backend is intentionally isolated under `app/crypto/` so it can be swapped to `age` or `pyrage` later.
+
+efe is still an MVP and has not been independently audited. Do not rely on it yet for high-risk or regulated data.
+
+## Setup
+
+```powershell
+cd efe
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+## CLI Examples
+
+Generate your local key pair:
+
+```powershell
+python -m app.main init-user-key --display-name "Alice Example" --email alice@example.com
+```
+
+You will be prompted for a private key passphrase. The passphrase is not shown on screen and is not stored by efe. Older unencrypted MVP keys should be regenerated.
+
+Export your public key for sharing:
+
+```powershell
+python -m app.main export-public-key --output alice-public-key.json
+```
+
+Import a recipient public key:
+
+```powershell
+python -m app.main import-contact-key bob-public-key.json
+```
+
+After checking the fingerprint by phone, WhatsApp, or in person, mark the contact as verified:
+
+```powershell
+python -m app.main verify-contact-key bob@example.com
+```
+
+List contacts:
+
+```powershell
+python -m app.main list-contacts
+```
+
+Encrypt a file for a saved recipient:
+
+```powershell
+python -m app.main encrypt-file .\document.pdf --recipient-email bob@example.com
+```
+
+If the contact is unverified, efe warns you and requires explicit confirmation. For scripts, use `--yes`.
+
+Decrypt a received file:
+
+```powershell
+python -m app.main decrypt-file .\data\encrypted\document.pdf.efe
+```
+
+You will be prompted for your private key passphrase.
+
+Show the audit log:
+
+```powershell
+python -m app.main show-audit-log
+```
+
+## Public Key Record
+
+Public key JSON records contain harmless metadata:
+
+- `display_name`
+- `email`
+- `public_key`
+- `key_fingerprint`
+- `generated_by_app`
+- `app_version`
+- `created_at`
+
+The fingerprint is calculated from the public key and displayed when importing. The user should verify it through another channel before marking the contact key as trusted.
+
+When importing a contact key, efe checks that the public key is valid base64, decodes to a 32-byte X25519 public key, can be loaded by the cryptography library, and matches the supplied fingerprint before it is saved to SQLite.
+
+## Encrypted File Format
+
+Encrypted files use a JSON `.efe` format:
+
+```text
+{
+  "header": {
+    "format": "efe-X25519-ChaCha20Poly1305-v1",
+    "generated_by_app": "efe",
+    "app_version": "0.1.0",
+    "created_at": "...",
+    "original_filename": "...",
+    "recipient_email": "...",
+    "recipient_key_fingerprint": "...",
+    "ephemeral_public_key": "...",
+    "nonce": "..."
+  },
+  "ciphertext": "..."
+}
+```
+
+The header is authenticated as additional data. Tampering with the ciphertext or required header fields causes decryption to fail.
+
+## Data Layout
+
+```text
+data/
+  keys/
+    efe_private_key.pem
+    efe_public_key.json
+  encrypted/
+  decrypted/
+  efe.db
+```
+
+## Tests
+
+```powershell
+cd efe
+python -m unittest discover -s tests
+```
