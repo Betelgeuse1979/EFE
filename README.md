@@ -98,6 +98,16 @@ Show version information:
 python -m app.main version
 ```
 
+## GUI Prototype
+
+The CLI remains available. A first PySide6 desktop prototype can be launched with:
+
+```powershell
+python -m app.gui.app
+```
+
+The GUI calls the same service layer as the CLI and does not replace Outlook, Gmail, or any other email client.
+
 ## Public Key Record
 
 Public key JSON records contain harmless metadata:

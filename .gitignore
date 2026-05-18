@@ -5,6 +5,7 @@ data/efe.db
 data/keys/*
 data/encrypted/*
 data/decrypted/*
+efe-public-key.json
 !data/keys/.gitkeep
 !data/encrypted/.gitkeep
 !data/decrypted/.gitkeep
