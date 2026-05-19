@@ -15,7 +15,7 @@ from app.services.contact_service import (
     mark_contact_verified,
 )
 from app.services.file_crypto_service import decrypt_received_file, encrypt_file_for_recipient
-from app.services.key_service import export_user_public_key, initialize_user_key
+from app.services.key_service import export_public_key_qr, export_user_public_key, initialize_user_key
 
 
 def _init_db() -> None:
@@ -74,6 +74,18 @@ def cmd_export_public_key(args: argparse.Namespace) -> int:
         return 0
     except Exception as exc:
         print(f"Public key export failed: {user_error_message(exc)}", file=sys.stderr)
+        return 1
+
+
+def cmd_export_public_key_qr(args: argparse.Namespace) -> int:
+    try:
+        result = export_public_key_qr(Path(args.output))
+        print(f"Exported public key QR code to: {result['output_path']}")
+        print(f"Public key fingerprint: {result['key_fingerprint']}")
+        print("Public keys may be shared, but recipients should verify the fingerprint before trusting the key.")
+        return 0
+    except Exception as exc:
+        print(f"Public key QR export failed: {user_error_message(exc)}", file=sys.stderr)
         return 1
 
 
@@ -213,6 +225,14 @@ def build_parser() -> argparse.ArgumentParser:
     export_key = subparsers.add_parser("export-public-key", help="Export your public key for sharing")
     export_key.add_argument("--output", required=True)
     export_key.set_defaults(func=cmd_export_public_key)
+
+    export_key_qr = subparsers.add_parser(
+        "export-public-key-qr",
+        help="Export your public key as a QR code PNG",
+        description="Export your public key as a QR code PNG",
+    )
+    export_key_qr.add_argument("--output", required=True)
+    export_key_qr.set_defaults(func=cmd_export_public_key_qr)
 
     import_key = subparsers.add_parser("import-contact-key", help="Import a recipient public key")
     import_key.add_argument("key_file")

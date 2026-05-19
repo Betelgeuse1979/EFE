@@ -49,6 +49,12 @@ Export your public key for sharing:
 
 python -m app.main export-public-key --output alice-public-key.json
 
+Export your public key as a QR code:
+
+python -m app.main export-public-key-qr --output alice-public-key.png
+
+The QR code contains the public key record only. It does not contain your private key or passphrase. Recipients should still verify the fingerprint before trusting the key.
+
 Import a recipient public key:
 
 python -m app.main import-contact-key bob-public-key.json

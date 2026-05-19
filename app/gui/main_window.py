@@ -32,7 +32,7 @@ from app.services.contact_service import (
     mark_contact_verified,
 )
 from app.services.file_crypto_service import decrypt_received_file, encryption_preflight, encrypt_file_for_recipient
-from app.services.key_service import export_user_public_key, initialize_user_key
+from app.services.key_service import export_public_key_qr, export_user_public_key, initialize_user_key
 
 
 class MainWindow(QMainWindow):
@@ -99,8 +99,11 @@ class MainWindow(QMainWindow):
         generate_button.clicked.connect(self.generate_key)
         export_button = QPushButton("Export Public Key")
         export_button.clicked.connect(self.export_public_key)
+        export_qr_button = QPushButton("Save Public Key QR")
+        export_qr_button.clicked.connect(self.export_public_key_qr)
         buttons.addWidget(generate_button)
         buttons.addWidget(export_button)
+        buttons.addWidget(export_qr_button)
         buttons.addStretch()
         layout.addLayout(buttons)
         layout.addStretch()
@@ -296,6 +299,21 @@ class MainWindow(QMainWindow):
         try:
             exported_path = export_user_public_key(Path(path))
             self.show_info("Public key exported", f"Saved to:\n{exported_path}")
+        except Exception as exc:
+            self.show_error(user_error_message(exc))
+
+    def export_public_key_qr(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(self, "Save Public Key QR", "efe-public-key.png", "PNG files (*.png)")
+        if not path:
+            return
+        try:
+            result = export_public_key_qr(Path(path))
+            self.show_info(
+                "Public key QR saved",
+                "The QR contains only the public key record.\n"
+                "Recipients should still verify the fingerprint before trusting it.\n\n"
+                f"Fingerprint:\n{result['key_fingerprint']}\n\nSaved to:\n{result['output_path']}",
+            )
         except Exception as exc:
             self.show_error(user_error_message(exc))
 

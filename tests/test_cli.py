@@ -19,6 +19,18 @@ class CliTests(unittest.TestCase):
         self.assertIn("Crypto format version:", result.stdout)
         self.assertIn("efe-X25519-ChaCha20Poly1305-v1", result.stdout)
 
+    def test_export_public_key_qr_help_is_available(self):
+        result = subprocess.run(
+            [sys.executable, "-m", "app.main", "export-public-key-qr", "--help"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("--output", result.stdout)
+        self.assertIn("QR code PNG", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
