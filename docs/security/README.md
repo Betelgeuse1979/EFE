@@ -2,6 +2,8 @@
 
 These documents support internal security review and future independent audit work for EFE. They are not a certification and do not mean EFE is production-ready, independently audited, or compliance-guaranteeing.
 
+Current documentation reflects the v0.6 public-key QR export checkpoint. EFE remains an MVP: the CLI remains available, a thin PySide6 GUI prototype exists, and QR export is limited to saving public key records as PNG images. QR scanning, webcam import, cloud sync, public key servers, and email-client integrations are not implemented.
+
 - [Threat Model](threat-model.md)
 - [Crypto Design](crypto-design.md)
 - [File Format](file-format.md)

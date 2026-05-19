@@ -4,6 +4,8 @@ EFE encrypted files use the `.efe` extension. A `.efe` file is an encrypted file
 
 The current format is JSON with a top-level header and ciphertext.
 
+This document reflects the v0.6 public-key QR export checkpoint. QR export uses PNG images containing public key JSON records and does not change the `.efe` encrypted file format.
+
 ## Required Top-Level Fields
 
 - `header`

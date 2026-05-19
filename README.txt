@@ -28,6 +28,11 @@ This MVP uses Python's well-supported cryptography package with X25519 and ChaCh
 
 efe is still an MVP and has not been independently audited. Do not rely on it yet for high-risk or regulated data.
 
+Security Documentation
+----------------------
+
+See docs/security/ for the threat model, crypto design, file format, key management notes, security assumptions, known limitations, and proposed audit scope.
+
 Setup
 -----
 

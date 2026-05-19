@@ -22,6 +22,7 @@ The audit should identify security issues, design weaknesses, unsafe assumptions
 - SQLite contact and audit handling
 - `.efe` file format
 - public key import and fingerprint verification
+- public key QR export
 - private key storage and passphrase handling
 - requirements and dependencies
 - tests for tampering, malformed files, wrong keys, and failure modes
@@ -33,6 +34,7 @@ The audit should identify security issues, design weaknesses, unsafe assumptions
 - Public key server
 - Enterprise admin console
 - Mobile apps
+- QR scanning or webcam support
 - Browser extensions
 - Central identity provider integration
 - Legal compliance certification
@@ -49,6 +51,7 @@ The audit should identify security issues, design weaknesses, unsafe assumptions
 - Do wrong-key and wrong-recipient cases fail safely?
 - Are malformed `.efe` files rejected safely?
 - Are public keys validated correctly?
+- Is public key QR export limited to public key records and free of private key material or passphrases?
 - Is fingerprint verification adequate for the MVP?
 - Are audit logs safe and free of plaintext or secret material?
 - Are file writes safe and atomic enough for this local app?

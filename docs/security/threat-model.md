@@ -1,6 +1,8 @@
 # EFE Threat Model
 
-EFE, short for Encrypted File Exchange, is a local CLI and desktop prototype for encrypting and decrypting files and email attachments. It does not replace Outlook, Gmail, or any other email client. Users encrypt files locally and manually send the resulting `.efe` encrypted file through ordinary channels.
+EFE, short for Encrypted File Exchange, is a local CLI MVP with a thin PySide6 desktop GUI prototype for encrypting and decrypting files and email attachments. It does not replace Outlook, Gmail, or any other email client. Users encrypt files locally and manually send the resulting `.efe` encrypted file through ordinary channels.
+
+This document reflects the v0.6 public-key QR export checkpoint. EFE can export a user's public key record as a QR code PNG, but it does not implement QR scanning, webcam import, cloud sync, a public key server, or email-client integration.
 
 ## What EFE Protects
 
@@ -37,12 +39,14 @@ EFE does not protect against:
 - Local private key material
 - Private key passphrase, while entered by the user
 - Recipient public keys and trust status in the local contact book
+- Exported public key records, including JSON and QR code forms
 - Audit log metadata
 
 ## Trust Assumptions
 
 - The user's operating system, filesystem, Python runtime, and installed dependencies behave correctly.
 - The `cryptography` package implements X25519, HKDF-SHA256, and ChaCha20-Poly1305 correctly.
+- The PySide6 and `qrcode[pil]` dependencies behave correctly for GUI display and QR generation.
 - The OS random number generator is secure.
 - Users choose strong passphrases and keep them secret.
 - Users verify public key fingerprints through a separate trusted channel.
@@ -79,11 +83,12 @@ EFE does not protect against:
 - Contact verification status.
 - Warning and explicit confirmation when encrypting to unverified contacts.
 - Public key import validation.
+- Public key QR export containing the public key record only.
 - Passphrase-encrypted private keys at rest.
 - Atomic output writes.
 - No silent overwrite of existing output files.
 - SQLite audit logging for encryption and decryption attempts.
-- Negative tests for tampering, wrong key, malformed files, and invalid keys.
+- Tests for tampering, wrong key, malformed files, invalid keys, service behavior, CLI behavior, GUI imports, and public key QR export.
 
 ## Remaining Risks
 
@@ -92,6 +97,7 @@ EFE does not protect against:
 - Private keys are protected by passphrase encryption, but not by hardware-backed storage.
 - There is no enterprise key recovery.
 - There is no central public key directory or certificate authority.
+- QR export exists, but QR scanning and webcam import do not exist yet.
 - Users may still trust the wrong key if they skip fingerprint verification.
 - Decrypted files remain ordinary files and must be protected by users and organisations.
 - EFE does not provide secure deletion.

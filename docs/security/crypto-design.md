@@ -14,6 +14,8 @@ EFE uses established primitives from Python's `cryptography` package:
 
 EFE does not design custom cryptographic primitives. However, EFE does define custom protocol glue and a custom `.efe` JSON file format. That glue has not been independently audited.
 
+This document reflects the v0.6 public-key QR export checkpoint. QR export does not change the cryptographic design. It serializes the existing public key record into a PNG QR code for easier sharing.
+
 ## Key Agreement
 
 Each recipient has a static X25519 public/private key pair.
@@ -72,6 +74,8 @@ Private keys must never be shared. They are stored locally and encrypted at rest
 
 Public key authenticity matters because an attacker can provide their own public key and trick a sender into encrypting to the attacker. The public key is not secret, but it must be authentic.
 
+Public key records can be exported as JSON files or as QR code PNG files. The QR payload contains only the public key record: display name, email, public key, key fingerprint, app metadata, and creation time. It must not contain private key material or passphrases. Fingerprint verification is still required after sharing by QR code.
+
 ## Fingerprint Verification
 
 EFE calculates a fingerprint for public keys and displays it during import and contact verification. Users should verify the fingerprint through a separate trusted channel, such as a phone call, WhatsApp, or in person.
@@ -90,4 +94,5 @@ If the private key or passphrase is lost, previously encrypted files may be unre
 - EFE does not currently use age/pyrage.
 - EFE does not use hardware-backed key storage.
 - EFE does not provide enterprise key recovery.
+- EFE provides QR export for public keys only; it does not provide QR scanning or webcam import.
 - EFE does not protect decrypted files after successful decryption.

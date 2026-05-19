@@ -22,6 +22,22 @@ The exported public key record contains harmless metadata:
 
 Public keys are not secret, but they must be authentic.
 
+## Public Key QR Export
+
+As of the v0.6 public-key QR export checkpoint, EFE can export the same public key record as a PNG QR code.
+
+The QR code contains only the public key record:
+
+- display name
+- email
+- public key
+- key fingerprint
+- app name
+- app version
+- creation time
+
+The QR code must not contain private key material or passphrases. Recipients should still verify the fingerprint through another trusted channel before trusting the key. QR scanning and webcam import are not implemented yet.
+
 ## Private Key Storage
 
 Private keys are stored locally and encrypted at rest with a passphrase. EFE does not store the passphrase in SQLite, config files, environment variables, or audit logs.
@@ -67,6 +83,7 @@ Public key metadata is intended to be shareable. Adding sensitive personal ident
 - There is no automatic key rotation.
 - There is no hardware-backed key storage.
 - There is no multi-device key sync.
+- There is no QR scanning or webcam import.
 
 ## Recommended User Practices
 

@@ -18,6 +18,7 @@ Known limitations include:
 - There is no Outlook or Gmail integration.
 - There is no cloud sync.
 - There is no automatic key rotation.
+- Public key QR export exists, but QR scanning and webcam import do not exist yet.
 - There is no guarantee of POPIA compliance.
 - Audit logs contain metadata such as filenames, recipient emails, and fingerprints.
 - Decrypted files are ordinary plaintext files and may be copied, backed up, screenshotted, printed, or otherwise exposed.

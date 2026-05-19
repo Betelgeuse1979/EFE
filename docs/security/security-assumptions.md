@@ -11,6 +11,8 @@ EFE's security depends on several assumptions. If these assumptions do not hold,
 - Python and the installed runtime are trusted.
 - Required dependencies are installed from trusted sources.
 - The `cryptography` package behaves correctly.
+- The PySide6 dependency behaves correctly for the GUI prototype.
+- The `qrcode[pil]` dependency behaves correctly when generating public key QR PNG files.
 
 ## Randomness And Cryptography
 
