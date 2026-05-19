@@ -3,10 +3,12 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from app.gui.main_window import MainWindow
+from app.gui.theme import apply_theme
 
 
 def main() -> int:
     app = QApplication(sys.argv)
+    apply_theme(app)
     window = MainWindow()
     window.show()
     return app.exec()
