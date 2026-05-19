@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from app.config.settings import APP_NAME, APP_VERSION, ENCRYPTED_DIR, ensure_data_dirs
+from app.config.settings import APP_NAME, APP_VERSION, ENCRYPTED_DIR
 from app.crypto.key_manager import public_key_from_text
 from app.file_io import atomic_write_text
 
@@ -27,7 +27,6 @@ def _derive_file_key(shared_secret: bytes, ephemeral_public_key: bytes, recipien
 
 
 def encrypt_file_for_contact(input_path: Path, contact: dict, output_path: Path | None = None) -> Path:
-    ensure_data_dirs()
     if output_path is None:
         output_path = ENCRYPTED_DIR / f"{input_path.name}.efe"
 

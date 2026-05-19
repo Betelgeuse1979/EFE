@@ -110,6 +110,12 @@ Show version information:
 python -m app.main version
 ```
 
+Show where EFE stores local runtime data:
+
+```powershell
+python -m app.main data-dir
+```
+
 ## GUI Prototype
 
 The CLI remains available. A first PySide6 desktop prototype can be launched with:
@@ -186,8 +192,34 @@ Decryption also fails if the file is invalid JSON, missing required fields, cont
 
 ## Data Layout
 
+On Windows, EFE stores runtime user data under:
+
 ```text
-data/
+%LOCALAPPDATA%\EFE\
+```
+
+For example:
+
+```text
+C:\Users\<User>\AppData\Local\EFE\
+```
+
+On non-Windows systems, EFE uses:
+
+```text
+~/.local/share/efe/
+```
+
+Advanced development/testing override:
+
+```powershell
+$env:EFE_DATA_DIR = "C:\path\to\test-data"
+```
+
+Normal users should not need to set `EFE_DATA_DIR`.
+
+```text
+%LOCALAPPDATA%\EFE\
   keys/
     efe_private_key.pem
     efe_public_key.json
@@ -195,6 +227,8 @@ data/
   decrypted/
   efe.db
 ```
+
+Older development builds used the project-relative `data/` directory. EFE does not automatically migrate that data. If you need old development keys or contacts, manually copy `data/keys/` and `data/efe.db` into the new data directory. Losing a private key or its passphrase may make encrypted files unrecoverable.
 
 ## Tests
 

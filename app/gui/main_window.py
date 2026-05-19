@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.config.settings import DB_PATH, PRIVATE_KEY_PATH, ensure_data_dirs
+from app.config.settings import DB_PATH, PRIVATE_KEY_PATH, ensure_data_dirs, get_data_paths
 from app.error_messages import user_error_message
 from app.services.audit_service import get_audit_entries, init_audit_log
 from app.services.contact_service import (
@@ -146,7 +146,11 @@ class MainWindow(QMainWindow):
         status_layout = QVBoxLayout(status_group)
         self.key_status_label = QLabel()
         self.key_status_label.setWordWrap(True)
+        self.data_location_label = QLabel(f"Data location:\n{get_data_paths()['data_dir']}")
+        self.data_location_label.setObjectName("helper")
+        self.data_location_label.setWordWrap(True)
         status_layout.addWidget(self.key_status_label)
+        status_layout.addWidget(self.data_location_label)
         layout.addWidget(status_group)
 
         form_group = self._group("Generate key")

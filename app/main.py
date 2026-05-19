@@ -3,7 +3,7 @@ import getpass
 import sys
 from pathlib import Path
 
-from app.config.settings import APP_FULL_NAME, APP_NAME, APP_VERSION, DB_PATH, ensure_data_dirs
+from app.config.settings import APP_FULL_NAME, APP_NAME, APP_VERSION, DB_PATH, ensure_data_dirs, get_data_paths
 from app.crypto.encrypt import CRYPTO_FORMAT_VERSION, FILE_FORMAT
 from app.error_messages import user_error_message
 from app.services.audit_service import get_audit_entries, init_audit_log
@@ -195,6 +195,18 @@ def cmd_version(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_data_dir(args: argparse.Namespace) -> int:
+    paths = get_data_paths()
+    print(f"Data directory: {paths['data_dir']}")
+    print(f"Keys directory: {paths['keys_dir']}")
+    print(f"Encrypted output directory: {paths['encrypted_dir']}")
+    print(f"Decrypted output directory: {paths['decrypted_dir']}")
+    print(f"SQLite database: {paths['db_path']}")
+    print(f"Private key path: {paths['private_key_path']}")
+    print(f"Public key record path: {paths['public_key_record_path']}")
+    return 0
+
+
 def cmd_show_audit_log(args: argparse.Namespace) -> int:
     _init_db()
     rows = get_audit_entries(DB_PATH)
@@ -265,6 +277,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     version = subparsers.add_parser("version", help="Show EFE version information")
     version.set_defaults(func=cmd_version)
+
+    data_dir = subparsers.add_parser("data-dir", help="Show EFE runtime data locations")
+    data_dir.set_defaults(func=cmd_data_dir)
 
     return parser
 

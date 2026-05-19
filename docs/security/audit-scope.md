@@ -24,6 +24,7 @@ The audit should identify security issues, design weaknesses, unsafe assumptions
 - public key import and fingerprint verification
 - public key QR export
 - private key storage and passphrase handling
+- per-user app data directory handling, including `EFE_DATA_DIR` override behavior
 - requirements and dependencies
 - tests for tampering, malformed files, wrong keys, and failure modes
 
@@ -56,6 +57,7 @@ The audit should identify security issues, design weaknesses, unsafe assumptions
 - Are audit logs safe and free of plaintext or secret material?
 - Are file writes safe and atomic enough for this local app?
 - Is no-silent-overwrite behavior implemented correctly?
+- Are runtime keys, database files, encrypted outputs, and decrypted outputs stored in appropriate per-user app data locations?
 - Are dependencies reasonable and current enough for an MVP?
 - Are CLI and GUI errors safe and understandable?
 

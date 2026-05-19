@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
-from app.config.settings import DECRYPTED_DIR, ensure_data_dirs
+from app.config.settings import DECRYPTED_DIR
 from app.crypto.encrypt import FILE_FORMAT, _derive_file_key
 from app.crypto.key_manager import load_private_key
 from app.exceptions import InvalidEfeFileError
@@ -72,7 +72,6 @@ def decrypt_file(
     private_key_path: Path | None = None,
     passphrase: bytes | None = None,
 ) -> Path:
-    ensure_data_dirs()
     private_key = (
         load_private_key(private_key_path, passphrase=passphrase)
         if private_key_path

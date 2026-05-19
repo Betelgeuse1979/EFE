@@ -42,9 +42,13 @@ The QR code must not contain private key material or passphrases. Recipients sho
 
 Private keys are stored locally and encrypted at rest with a passphrase. EFE does not store the passphrase in SQLite, config files, environment variables, or audit logs.
 
+On Windows, runtime key files are stored under `%LOCALAPPDATA%\EFE\keys\` by default. On non-Windows systems, runtime key files are stored under `~/.local/share/efe/keys/` by default. The `EFE_DATA_DIR` environment variable can override this location for development and testing.
+
 Private keys must never be shared.
 
 If the private key or passphrase is lost, encrypted files may be unrecoverable.
+
+Older development builds used a project-relative `data/` directory. EFE does not automatically migrate old development keys or databases yet. Users who need old development keys must manually copy them into the current app data directory and keep private key/passphrase loss risk in mind.
 
 ## Public Key Import
 

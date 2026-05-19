@@ -12,7 +12,6 @@ from app.config.settings import (
     APP_VERSION,
     PRIVATE_KEY_PATH,
     PUBLIC_KEY_RECORD_PATH,
-    ensure_data_dirs,
 )
 from app.exceptions import InvalidPublicKeyError, PrivateKeyUnlockError
 from app.crypto.fingerprint import calculate_fingerprint
@@ -74,7 +73,8 @@ def generate_user_key_pair(
     overwrite: bool = False,
 ) -> dict[str, str]:
     _require_passphrase(passphrase)
-    ensure_data_dirs()
+    private_key_path.parent.mkdir(parents=True, exist_ok=True)
+    public_key_record_path.parent.mkdir(parents=True, exist_ok=True)
     if private_key_path.exists() and not overwrite:
         raise FileExistsError(f"Private key already exists: {private_key_path}")
 
@@ -104,9 +104,9 @@ def generate_user_key_pair(
 
 
 def export_public_key(export_path: Path, public_key_record_path: Path = PUBLIC_KEY_RECORD_PATH) -> Path:
-    ensure_data_dirs()
     if not public_key_record_path.exists():
         raise FileNotFoundError("No user public key found. Run init-user-key first.")
+    export_path.parent.mkdir(parents=True, exist_ok=True)
     export_path.write_text(public_key_record_path.read_text(encoding="utf-8"), encoding="utf-8")
     return export_path
 

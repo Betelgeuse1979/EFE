@@ -8,6 +8,7 @@ EFE's security depends on several assumptions. If these assumptions do not hold,
 - The recipient device is not already compromised.
 - The operating system behaves correctly.
 - Local filesystem permissions are respected.
+- The user's per-user app data directory, such as `%LOCALAPPDATA%\EFE\` on Windows, is available and protected by normal OS account controls.
 - Python and the installed runtime are trusted.
 - Required dependencies are installed from trusted sources.
 - The `cryptography` package behaves correctly.
