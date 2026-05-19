@@ -107,6 +107,15 @@ python -m app.gui.app
 
 The GUI calls the same service layer as the CLI and does not replace Outlook, Gmail, or any other email client.
 
+Packaging Prototype
+-------------------
+
+EFE includes a developer packaging prototype for a Windows GUI one-folder build using PyInstaller. This is not a signed installer and does not mean EFE is production-ready.
+
+.\packaging\build_windows_gui.ps1
+
+See packaging/README.md for prerequisites, expected output, runtime data location, and known limitations. The prototype packages the GUI only; the CLI remains available from source with python -m app.main ...
+
 Public Key Record
 -----------------
 
