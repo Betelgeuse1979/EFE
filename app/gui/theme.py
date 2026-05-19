@@ -17,7 +17,7 @@ def windows_prefers_dark_mode() -> bool:
         ) as key:
             value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
             return int(value) == 0
-    except OSError:
+    except Exception:
         return False
 
 
