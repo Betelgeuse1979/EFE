@@ -42,7 +42,7 @@ Roadmap And Architecture
 - Architecture Notes: docs/architecture.md
 - Testing Backlog: docs/backlog/testing.md
 
-The roadmap keeps EFE local-first: core encryption/decryption should not require cloud infrastructure. Before a v1 public release, the .efe file format must be stabilized, metadata leakage must be reviewed, and large-file handling must be defined.
+The roadmap keeps EFE local-first: core encryption/decryption should not require cloud infrastructure. Before a v1 public release, the .efe file format must be stabilized, metadata leakage must be reviewed, and large-file handling must be defined. Streaming large-file support is planned, but the current MVP format is not yet a streaming binary format.
 
 Setup
 -----

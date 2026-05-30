@@ -39,6 +39,32 @@ Some items already have partial coverage. This backlog is intentionally broader 
 - Existing output file collision.
 - Temporary file cleanup after failure.
 
+## v2 Streaming Format Tests
+
+- Encrypt/decrypt a very large file without high memory use.
+- Corrupted binary public header.
+- Corrupted encrypted metadata block.
+- Corrupted chunk ciphertext.
+- Missing chunk.
+- Reordered chunk.
+- Duplicated chunk.
+- Truncated final chunk.
+- Missing footer or finalization marker.
+- Extra unauthenticated trailing bytes.
+- Wrong private key.
+- Wrong private key passphrase.
+- Interrupted streaming encryption.
+- Interrupted streaming decryption.
+- Low disk space during streaming encrypt/decrypt.
+- Network share disconnect during streaming encrypt/decrypt.
+- Removable drive disconnect during streaming encrypt/decrypt.
+- Unicode filename.
+- Very long filename.
+- Zero-byte file.
+- Many small files.
+- Legacy v1 decrypt still works after v2 support is added.
+- v1/v2 file format auto-detection rejects unknown formats safely.
+
 ## Contacts And Trust Workflow
 
 - Contact fingerprint verification edge cases.
