@@ -1,6 +1,8 @@
 import base64
 import json
 import os
+import struct
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,6 +17,8 @@ from app.file_io import atomic_write_text
 
 FILE_FORMAT = "efe-X25519-ChaCha20Poly1305-v1"
 CRYPTO_FORMAT_VERSION = "v1"
+ENCRYPTED_METADATA_MODE = "encrypted-json-v1"
+METADATA_VERSION = 1
 
 
 def _derive_file_key(shared_secret: bytes, ephemeral_public_key: bytes, recipient_public_key: str) -> bytes:
@@ -26,9 +30,23 @@ def _derive_file_key(shared_secret: bytes, ephemeral_public_key: bytes, recipien
     ).derive(shared_secret)
 
 
+def _pack_plaintext_with_metadata(input_path: Path, plaintext: bytes) -> bytes:
+    metadata = {
+        "metadata_version": METADATA_VERSION,
+        "original_filename": input_path.name,
+        "original_size": len(plaintext),
+    }
+    metadata_bytes = json.dumps(metadata, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return struct.pack(">I", len(metadata_bytes)) + metadata_bytes + plaintext
+
+
+def default_encrypted_output_path() -> Path:
+    return ENCRYPTED_DIR / f"efe-{uuid.uuid4().hex}.efe"
+
+
 def encrypt_file_for_contact(input_path: Path, contact: dict, output_path: Path | None = None) -> Path:
     if output_path is None:
-        output_path = ENCRYPTED_DIR / f"{input_path.name}.efe"
+        output_path = default_encrypted_output_path()
 
     recipient_public_key = public_key_from_text(contact["public_key"])
     ephemeral_private_key = x25519.X25519PrivateKey.generate()
@@ -46,14 +64,14 @@ def encrypt_file_for_contact(input_path: Path, contact: dict, output_path: Path 
         "generated_by_app": APP_NAME,
         "app_version": APP_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "original_filename": input_path.name,
+        "metadata_mode": ENCRYPTED_METADATA_MODE,
         "recipient_email": contact["email"],
         "recipient_key_fingerprint": contact["key_fingerprint"],
         "ephemeral_public_key": base64.b64encode(ephemeral_public_bytes).decode("ascii"),
         "nonce": base64.b64encode(nonce).decode("ascii"),
     }
     header_bytes = json.dumps(header, sort_keys=True).encode("utf-8")
-    ciphertext = ChaCha20Poly1305(file_key).encrypt(nonce, plaintext, header_bytes)
+    ciphertext = ChaCha20Poly1305(file_key).encrypt(nonce, _pack_plaintext_with_metadata(input_path, plaintext), header_bytes)
 
     payload = {
         "header": header,

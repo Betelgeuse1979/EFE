@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.config.settings import DB_PATH, ENCRYPTED_DIR, PRIVATE_KEY_PATH
+from app.config.settings import DB_PATH, PRIVATE_KEY_PATH
 from app.crypto.decrypt import decrypt_file
-from app.crypto.encrypt import encrypt_file_for_contact
+from app.crypto.encrypt import default_encrypted_output_path, encrypt_file_for_contact
 from app.exceptions import ContactNotFoundError, OutputExistsError
 from app.services.audit_service import record_audit_entry
 from app.services.contact_service import get_contact
@@ -37,7 +37,7 @@ def encryption_preflight(
         raise FileNotFoundError(f"Input file not found: {input_path}")
     if not input_path.is_file():
         raise IsADirectoryError(f"Input path is not a file: {input_path}")
-    resolved_output_path = output_path or ENCRYPTED_DIR / f"{input_path.name}.efe"
+    resolved_output_path = output_path or default_encrypted_output_path()
     if resolved_output_path.exists():
         raise OutputExistsError(f"Output file already exists: {resolved_output_path}")
 
@@ -75,7 +75,7 @@ def encrypt_file_for_recipient(
     contact = get_contact(recipient_email, db_path)
 
     try:
-        encrypted_path = encrypt_file_for_contact(input_path, dict(contact), output_path)
+        encrypted_path = encrypt_file_for_contact(input_path, dict(contact), Path(preflight["output_path"]))
         _safe_record_audit_entry(
             timestamp=_now(),
             action_type="encrypt",

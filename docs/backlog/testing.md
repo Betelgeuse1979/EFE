@@ -11,6 +11,7 @@ Some items already have partial coverage. This backlog is intentionally broader 
 - Corrupted `.efe` package.
 - Tampered ciphertext.
 - Tampered metadata.
+- Tampered encrypted metadata.
 - Truncated `.efe` file.
 - Invalid or unsupported format version.
 - Missing required header fields.
@@ -24,7 +25,7 @@ Some items already have partial coverage. This backlog is intentionally broader 
 - Long filenames.
 - Unicode filenames.
 - Filenames with spaces and punctuation.
-- Metadata privacy checks, especially avoiding plaintext leakage of `original_filename`.
+- Metadata privacy checks, especially ensuring new files do not leak `original_filename`.
 - Header fields that are authenticated but intentionally not encrypted.
 
 ## File I/O And Environment Failures
@@ -52,4 +53,3 @@ Some items already have partial coverage. This backlog is intentionally broader 
 - Audit log unavailable or locked.
 - Audit logging failure must not hide the original encryption/decryption error.
 - Audit logs must not store plaintext, passphrases, private keys, or raw decrypted data.
-

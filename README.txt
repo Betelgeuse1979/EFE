@@ -160,7 +160,7 @@ Required header fields:
 - generated_by_app
 - app_version
 - created_at
-- original_filename
+- metadata_mode
 - recipient_email
 - recipient_key_fingerprint
 - ephemeral_public_key
@@ -172,7 +172,9 @@ Base64 fields:
 - header.ephemeral_public_key
 - header.nonce
 
-The full header is authenticated as additional data by ChaCha20-Poly1305. Tampering with any required header field, the ciphertext, the nonce, or the ephemeral public key causes decryption to fail.
+The public header is authenticated as additional data by ChaCha20-Poly1305, but it is not encrypted. New .efe files do not store original_filename in this public header. Sensitive file metadata, including the original filename and original file size, is stored inside encrypted metadata within the ciphertext and is only visible after successful decryption.
+
+Tampering with any required header field, encrypted metadata, ciphertext, nonce, or ephemeral public key causes decryption to fail. A .efe package may still reveal that it is an EFE encrypted file, but new files should not reveal the original document name.
 
 {
   "header": {
@@ -180,7 +182,7 @@ The full header is authenticated as additional data by ChaCha20-Poly1305. Tamper
     "generated_by_app": "efe",
     "app_version": "0.1.0",
     "created_at": "...",
-    "original_filename": "...",
+    "metadata_mode": "encrypted-json-v1",
     "recipient_email": "...",
     "recipient_key_fingerprint": "...",
     "ephemeral_public_key": "...",
@@ -188,6 +190,16 @@ The full header is authenticated as additional data by ChaCha20-Poly1305. Tamper
   },
   "ciphertext": "..."
 }
+
+The encrypted metadata currently includes:
+
+- metadata_version
+- original_filename
+- original_size
+
+Older legacy MVP files that stored original_filename in the public header are still supported for decryption where practical, but new files should not leak that metadata.
+
+When no explicit encrypted output path is provided, EFE also uses a generic random .efe filename instead of deriving the package filename from the source filename.
 
 Decryption also fails if the file is invalid JSON, missing required fields, contains invalid base64 values, was encrypted for a different private key, or the private key passphrase is wrong.
 

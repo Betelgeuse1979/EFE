@@ -33,7 +33,7 @@ Before a v1 public release, EFE must stabilize the `.efe` file format and docume
 Required v1 work:
 
 - Freeze v1 `.efe` file format requirements.
-- Fix plaintext metadata leakage, especially `original_filename`.
+- Keep plaintext metadata leakage fixed for new files, especially `original_filename`, and continue reviewing remaining public header fields.
 - Decide whether the current JSON/Base64 format remains temporary or is replaced with a binary streaming format.
 - Support explicit format versioning and backward compatibility planning.
 - Add adversarial tests for malformed, tampered, truncated, and partially written `.efe` files.
@@ -43,9 +43,8 @@ Required v1 work:
 
 ## Near-Term Backlog
 
-- Review current `.efe` metadata fields and remove avoidable plaintext metadata.
+- Review remaining `.efe` public header fields and remove avoidable plaintext metadata.
 - Decide whether v1 requires streaming encryption before release.
 - Extend failure-mode tests around corrupted package structures and file I/O interruptions.
 - Continue packaging work without adding installer, code signing, or auto-update until the application behavior is stable.
 - Prepare for independent security review before encouraging high-risk or regulated use.
-

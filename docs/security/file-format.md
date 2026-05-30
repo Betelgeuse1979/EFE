@@ -2,7 +2,7 @@
 
 EFE encrypted files use the `.efe` extension. A `.efe` file is an encrypted file or attachment. It is not an email message and does not contain Outlook, Gmail, or other email client data.
 
-The current format is JSON with a top-level header and ciphertext.
+The current format is JSON with a top-level public header and ciphertext.
 
 This document reflects the v0.6 public-key QR export checkpoint. QR export uses PNG images containing public key JSON records and does not change the `.efe` encrypted file format.
 
@@ -17,7 +17,7 @@ This document reflects the v0.6 public-key QR export checkpoint. QR export uses 
 - `generated_by_app`
 - `app_version`
 - `created_at`
-- `original_filename`
+- `metadata_mode`
 - `recipient_email`
 - `recipient_key_fingerprint`
 - `ephemeral_public_key`
@@ -41,9 +41,27 @@ This marker is authenticated as part of the header. Files with unsupported forma
 
 ## Authenticated Header Behaviour
 
-The header is passed to ChaCha20-Poly1305 as associated authenticated data. Header fields are not encrypted, but they are authenticated. If any authenticated header value is changed, decryption fails.
+The public header is passed to ChaCha20-Poly1305 as associated authenticated data. Header fields are not encrypted, but they are authenticated. If any authenticated header value is changed, decryption fails.
 
-Authenticated header fields include metadata such as the original filename, recipient email, recipient key fingerprint, nonce, and ephemeral public key.
+Authenticated public header fields include technical metadata such as format, app version, recipient email, recipient key fingerprint, nonce, ephemeral public key, and metadata mode.
+
+New `.efe` files do not store `original_filename` in the public header. Sensitive file metadata is encrypted inside the ciphertext and authenticated by ChaCha20-Poly1305.
+
+## Encrypted Metadata
+
+For new files, the plaintext passed to ChaCha20-Poly1305 is:
+
+```text
+4-byte big-endian metadata length || metadata JSON || file bytes
+```
+
+The encrypted metadata currently includes:
+
+- `metadata_version`
+- `original_filename`
+- `original_size`
+
+This means the original filename is only available after successful decryption/authentication. A `.efe` package may still reveal that it is an EFE encrypted file, but new files should not reveal the original document name.
 
 ## Example Structure
 
@@ -54,7 +72,7 @@ Authenticated header fields include metadata such as the original filename, reci
     "generated_by_app": "efe",
     "app_version": "0.1.0",
     "created_at": "2026-05-19T12:00:00+00:00",
-    "original_filename": "document.pdf",
+    "metadata_mode": "encrypted-json-v1",
     "recipient_email": "recipient@example.com",
     "recipient_key_fingerprint": "ABCD:1234:...",
     "ephemeral_public_key": "...",
@@ -75,6 +93,7 @@ Decryption fails if:
 - the format marker is unsupported
 - the ephemeral public key is invalid
 - the nonce is invalid
+- encrypted metadata is modified
 - the ciphertext is modified
 - any authenticated header field is modified
 - the file was encrypted for a different private key
@@ -87,6 +106,10 @@ Decryption fails if:
 EFE is still an MVP. No backwards compatibility guarantee is made yet for future `.efe` format versions.
 
 Current files include an explicit format marker so future versions can detect and reject unsupported formats safely.
+
+Legacy MVP files that stored `original_filename` in the public header are still supported for decryption where practical. Those files should be treated as legacy because they leak filename metadata. New files use encrypted metadata instead.
+
+When no explicit encrypted output path is provided, EFE also writes a generic random `.efe` package filename instead of deriving the output name from the source filename.
 
 ## Future Versioning Considerations
 

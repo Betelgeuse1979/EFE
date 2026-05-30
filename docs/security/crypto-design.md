@@ -48,23 +48,38 @@ Each encryption uses:
 - a fresh 32-byte derived file key
 - a 12-byte random nonce from the OS random number generator
 - the JSON header as associated authenticated data
+- encrypted metadata prefixed to the plaintext before file bytes
 
-ChaCha20-Poly1305 provides confidentiality and authentication for the encrypted file contents. The associated header is authenticated but not encrypted.
+ChaCha20-Poly1305 provides confidentiality and authentication for the encrypted file contents and encrypted metadata. The associated public header is authenticated but not encrypted.
 
 ## Authenticated Header
 
-The `.efe` header includes metadata such as:
+The `.efe` public header includes technical metadata such as:
 
 - format marker
 - app version
 - creation time
-- original filename
+- metadata mode
 - recipient email
 - recipient key fingerprint
 - ephemeral public key
 - nonce
 
 EFE serializes the header with deterministic JSON key ordering and passes it to ChaCha20-Poly1305 as associated authenticated data. If the header is modified, decryption fails.
+
+## Encrypted File Metadata
+
+New `.efe` files do not store the original filename in the public header. Instead, EFE encrypts a metadata JSON object together with the file bytes.
+
+Encrypted metadata currently includes:
+
+- metadata version
+- original filename
+- original file size
+
+The metadata is authenticated because it is inside the ChaCha20-Poly1305 ciphertext. If encrypted metadata or ciphertext is modified, decryption fails. Legacy MVP files that stored `original_filename` in the public header are still supported for decryption where practical, but new files should not leak the original document name.
+
+When EFE chooses a default encrypted output path, it uses a generic random `.efe` package filename instead of deriving the package name from the original filename.
 
 ## Public And Private Key Separation
 

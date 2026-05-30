@@ -1,6 +1,7 @@
 import base64
 import binascii
 import json
+import struct
 from pathlib import Path
 
 from cryptography.exceptions import InvalidTag
@@ -9,7 +10,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import x25519
 
 from app.config.settings import DECRYPTED_DIR
-from app.crypto.encrypt import FILE_FORMAT, _derive_file_key
+from app.crypto.encrypt import ENCRYPTED_METADATA_MODE, FILE_FORMAT, _derive_file_key
 from app.crypto.key_manager import load_private_key
 from app.exceptions import InvalidEfeFileError
 from app.file_io import atomic_write_bytes
@@ -19,12 +20,12 @@ REQUIRED_HEADER_FIELDS = {
     "generated_by_app",
     "app_version",
     "created_at",
-    "original_filename",
     "recipient_email",
     "recipient_key_fingerprint",
     "ephemeral_public_key",
     "nonce",
 }
+FALLBACK_FILENAME = "decrypted_output"
 
 
 def _private_public_key_text(private_key: x25519.X25519PrivateKey) -> str:
@@ -42,7 +43,7 @@ def _decode_base64_field(value: str, field_name: str) -> bytes:
         raise InvalidEfeFileError(f"Invalid base64 value for {field_name}.") from exc
 
 
-def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes]:
+def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes, bool]:
     try:
         payload = json.loads(input_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -56,6 +57,10 @@ def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes]:
     if missing:
         raise InvalidEfeFileError(f"Encrypted file header is missing: {', '.join(sorted(missing))}.")
 
+    is_legacy = "original_filename" in header and "metadata_mode" not in header
+    if not is_legacy and header.get("metadata_mode") != ENCRYPTED_METADATA_MODE:
+        raise InvalidEfeFileError("Encrypted file is missing encrypted metadata mode.")
+
     if header.get("format") != FILE_FORMAT:
         raise InvalidEfeFileError("Unsupported encrypted file format.")
 
@@ -63,7 +68,39 @@ def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes]:
         raise InvalidEfeFileError("Encrypted file is missing ciphertext.")
 
     ciphertext = _decode_base64_field(payload["ciphertext"], "ciphertext")
-    return header, ciphertext
+    return header, ciphertext, is_legacy
+
+
+def _safe_output_filename(filename: str | None) -> str:
+    if not filename or not isinstance(filename, str):
+        return FALLBACK_FILENAME
+    safe_name = Path(filename).name.strip()
+    if not safe_name or safe_name in {".", ".."}:
+        return FALLBACK_FILENAME
+    if len(safe_name) > 180:
+        suffix = Path(safe_name).suffix
+        stem_limit = max(1, 180 - len(suffix))
+        safe_name = f"{Path(safe_name).stem[:stem_limit]}{suffix}"
+    return safe_name
+
+
+def _unpack_plaintext_with_metadata(decrypted_payload: bytes) -> tuple[dict, bytes]:
+    if len(decrypted_payload) < 4:
+        return {}, decrypted_payload
+
+    metadata_length = struct.unpack(">I", decrypted_payload[:4])[0]
+    metadata_start = 4
+    metadata_end = metadata_start + metadata_length
+    if metadata_length <= 0 or metadata_end > len(decrypted_payload):
+        return {}, decrypted_payload
+
+    try:
+        metadata = json.loads(decrypted_payload[metadata_start:metadata_end].decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {}, decrypted_payload
+    if not isinstance(metadata, dict):
+        return {}, decrypted_payload
+    return metadata, decrypted_payload[metadata_end:]
 
 
 def decrypt_file(
@@ -77,10 +114,7 @@ def decrypt_file(
         if private_key_path
         else load_private_key(passphrase=passphrase)
     )
-    header, ciphertext = _load_encrypted_payload(input_path)
-
-    if output_path is None:
-        output_path = DECRYPTED_DIR / header.get("original_filename", input_path.stem)
+    header, ciphertext, is_legacy = _load_encrypted_payload(input_path)
 
     ephemeral_public_bytes = _decode_base64_field(header["ephemeral_public_key"], "ephemeral_public_key")
     try:
@@ -94,12 +128,21 @@ def decrypt_file(
     header_bytes = json.dumps(header, sort_keys=True).encode("utf-8")
 
     try:
-        plaintext = ChaCha20Poly1305(file_key).decrypt(nonce, ciphertext, header_bytes)
+        decrypted_payload = ChaCha20Poly1305(file_key).decrypt(nonce, ciphertext, header_bytes)
     except InvalidTag as exc:
         raise InvalidEfeFileError(
             "Decryption failed. The file may be tampered with, corrupted, "
             "or encrypted for a different private key."
         ) from exc
+
+    if is_legacy:
+        metadata = {"original_filename": header.get("original_filename")}
+        plaintext = decrypted_payload
+    else:
+        metadata, plaintext = _unpack_plaintext_with_metadata(decrypted_payload)
+
+    if output_path is None:
+        output_path = DECRYPTED_DIR / _safe_output_filename(metadata.get("original_filename"))
 
     atomic_write_bytes(output_path, plaintext)
     return output_path
