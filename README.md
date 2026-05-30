@@ -1,6 +1,8 @@
 # efe
 
-efe, short for Encrypted File Exchange, is a local CLI MVP for encrypting and decrypting email attachments. It does not replace Outlook, Gmail, or any other email client. You encrypt a file locally, then manually attach the encrypted file to your normal email.
+efe, short for Encrypted File Exchange, is a practical local-first encrypted file exchange tool. It helps users encrypt and decrypt files or email attachments without replacing Outlook, Gmail, or any other email client. You encrypt a file locally, then manually attach the encrypted `.efe` file to your normal email.
+
+EFE v1 is intended to be free for basic desktop use. The `.efe` file format is also intended to become a reusable local protocol layer for future tools. Commercial or business workflow products may later be built around EFE, such as evidence logs, practical compliance support, encrypted exports, team deployment tooling, and support services.
 
 ## Security Model
 
@@ -19,7 +21,7 @@ EFE is designed to help reduce the risk of unauthorised access to sensitive file
 
 Under South Africa's POPIA framework, organisations that process personal information are expected to take appropriate and reasonable technical and organisational measures to protect that information. If personal information is accessed or acquired by an unauthorised person, breach-notification obligations may arise.
 
-EFE does not make an organisation automatically POPIA compliant and is not legal advice. It should be seen as one practical technical safeguard within a broader data protection process that may also include policies, staff training, access control, retention rules, incident response, and secure backups.
+EFE does not make an organisation automatically POPIA compliant and is not legal advice. It should be seen as one practical technical safeguard within a broader data protection process that may also include policies, staff training, access control, retention rules, incident response, secure backups, and evidence of reasonable steps taken.
 
 This MVP uses Python's well-supported `cryptography` package with X25519 and ChaCha20-Poly1305. The crypto backend is intentionally isolated under `app/crypto/` so it can be swapped to `age` or `pyrage` later.
 
@@ -28,6 +30,14 @@ efe is still an MVP and has not been independently audited. Do not rely on it ye
 ## Security Documentation
 
 See [`docs/security/`](docs/security/) for the threat model, crypto design, file format, key management notes, security assumptions, known limitations, and proposed audit scope.
+
+## Roadmap And Architecture
+
+- [Roadmap](docs/backlog/roadmap.md)
+- [Architecture Notes](docs/architecture.md)
+- [Testing Backlog](docs/backlog/testing.md)
+
+The roadmap keeps EFE local-first: core encryption/decryption should not require cloud infrastructure. Before a v1 public release, the `.efe` file format must be stabilized, metadata leakage must be reviewed, and large-file handling must be defined.
 
 ## Setup
 

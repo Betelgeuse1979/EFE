@@ -11,6 +11,7 @@ dist/
 *-public-key.png
 data/*
 efe-public-key.json
+docs/private/
 !data/keys/.gitkeep
 !data/encrypted/.gitkeep
 !data/decrypted/.gitkeep
