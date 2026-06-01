@@ -12,9 +12,9 @@ EFE uses established primitives from Python's `cryptography` package:
 - 12-byte random nonces
 - passphrase-encrypted private keys at rest
 
-EFE does not design custom cryptographic primitives. However, EFE does define custom protocol glue and a custom `.efe` JSON file format. That glue has not been independently audited.
+EFE does not design custom cryptographic primitives. However, EFE does define custom protocol glue and custom `.efe` package formats. That glue has not been independently audited.
 
-This document reflects the v0.6 public-key QR export checkpoint. QR export does not change the cryptographic design. It serializes the existing public key record into a PNG QR code for easier sharing.
+The default public encryption format remains the v1 JSON/Base64 package. Experimental v2 streaming binary support exists internally for testing and is not yet the default CLI or GUI format.
 
 ## Key Agreement
 
@@ -41,7 +41,7 @@ The derived key is 32 bytes and is used with ChaCha20-Poly1305.
 
 ## File Encryption
 
-File contents are encrypted with ChaCha20-Poly1305.
+Default v1 file contents are encrypted with ChaCha20-Poly1305.
 
 Each encryption uses:
 
@@ -51,6 +51,24 @@ Each encryption uses:
 - encrypted metadata prefixed to the plaintext before file bytes
 
 ChaCha20-Poly1305 provides confidentiality and authentication for the encrypted file contents and encrypted metadata. The associated public header is authenticated but not encrypted.
+
+## Experimental v2 Streaming Encryption
+
+EFE also includes an internal experimental v2 streaming binary path. It is selected deliberately by services/tests and is not the default user-facing format yet.
+
+The v2 path keeps the same primitive family:
+
+- X25519 key agreement with a fresh ephemeral sender key per file.
+- HKDF-SHA256 key derivation.
+- Separate derived keys for encrypted metadata, content chunks, and the final footer/manifest.
+- ChaCha20-Poly1305 authenticated encryption.
+- A public technical header that is authenticated but not encrypted.
+- Encrypted metadata containing the original filename and original file size.
+- Chunked content encryption with a default 1 MiB chunk size.
+- Per-chunk nonces built from a random 4-byte file nonce prefix and an 8-byte big-endian chunk index.
+- A final authenticated footer containing chunk count, total plaintext size, public header hash, and chunk-record hash.
+
+The v2 decrypt path auto-detects files beginning with the `EFE2` magic bytes. Existing v1 JSON files remain supported.
 
 ## Authenticated Header
 
@@ -105,7 +123,8 @@ If the private key or passphrase is lost, previously encrypted files may be unre
 
 ## Known Limitations
 
-- The `.efe` format and protocol glue have not been independently audited.
+- The `.efe` formats and protocol glue have not been independently audited.
+- The v2 streaming format is experimental and not yet the public default.
 - EFE does not currently use age/pyrage.
 - EFE does not use hardware-backed key storage.
 - EFE does not provide enterprise key recovery.

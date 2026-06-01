@@ -4,6 +4,7 @@ from pathlib import Path
 from app.config.settings import DB_PATH, PRIVATE_KEY_PATH
 from app.crypto.decrypt import decrypt_file
 from app.crypto.encrypt import default_encrypted_output_path, encrypt_file_for_contact
+from app.crypto.streaming_encrypt import default_v2_encrypted_output_path, encrypt_file_for_contact_streaming
 from app.exceptions import ContactNotFoundError, OutputExistsError
 from app.services.audit_service import record_audit_entry
 from app.services.contact_service import get_contact
@@ -27,6 +28,7 @@ def encryption_preflight(
     recipient_email: str,
     output_path: Path | None = None,
     db_path: Path = DB_PATH,
+    format_version: str = "v1",
 ) -> dict:
     """Return encrypt readiness information as a plain dictionary for CLI/GUI use."""
     contact = get_contact(recipient_email, db_path)
@@ -37,7 +39,13 @@ def encryption_preflight(
         raise FileNotFoundError(f"Input file not found: {input_path}")
     if not input_path.is_file():
         raise IsADirectoryError(f"Input path is not a file: {input_path}")
-    resolved_output_path = output_path or default_encrypted_output_path()
+    if format_version == "v1":
+        resolved_output_path = output_path or default_encrypted_output_path()
+    elif format_version == "v2":
+        resolved_output_path = output_path or default_v2_encrypted_output_path()
+    else:
+        raise ValueError("Unsupported EFE format version.")
+
     if resolved_output_path.exists():
         raise OutputExistsError(f"Output file already exists: {resolved_output_path}")
 
@@ -48,6 +56,7 @@ def encryption_preflight(
         "recipient_key_fingerprint": contact["key_fingerprint"],
         "input_path": str(input_path),
         "output_path": str(resolved_output_path),
+        "format_version": format_version,
     }
 
 
@@ -56,9 +65,10 @@ def encrypt_file_for_recipient(
     recipient_email: str,
     output_path: Path | None = None,
     db_path: Path = DB_PATH,
+    format_version: str = "v1",
 ) -> dict:
     try:
-        preflight = encryption_preflight(input_path, recipient_email, output_path, db_path)
+        preflight = encryption_preflight(input_path, recipient_email, output_path, db_path, format_version)
     except ContactNotFoundError as exc:
         _safe_record_audit_entry(
             timestamp=_now(),
@@ -75,7 +85,10 @@ def encrypt_file_for_recipient(
     contact = get_contact(recipient_email, db_path)
 
     try:
-        encrypted_path = encrypt_file_for_contact(input_path, dict(contact), Path(preflight["output_path"]))
+        if format_version == "v2":
+            encrypted_path = encrypt_file_for_contact_streaming(input_path, dict(contact), Path(preflight["output_path"]))
+        else:
+            encrypted_path = encrypt_file_for_contact(input_path, dict(contact), Path(preflight["output_path"]))
         _safe_record_audit_entry(
             timestamp=_now(),
             action_type="encrypt",
@@ -90,6 +103,7 @@ def encrypt_file_for_recipient(
             "recipient_email": contact["email"],
             "key_fingerprint": contact["key_fingerprint"],
             "recipient_verified": preflight["recipient_verified"],
+            "format_version": format_version,
         }
     except Exception as exc:
         _safe_record_audit_entry(

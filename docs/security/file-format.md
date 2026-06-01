@@ -2,9 +2,9 @@
 
 EFE encrypted files use the `.efe` extension. A `.efe` file is an encrypted file or attachment. It is not an email message and does not contain Outlook, Gmail, or other email client data.
 
-The current format is JSON with a top-level public header and ciphertext.
+The current default format is v1 JSON with a top-level public header and ciphertext. Experimental v2 streaming binary support exists internally for testing, but v1 remains the default CLI and GUI encryption format.
 
-This document reflects the v0.6 public-key QR export checkpoint. QR export uses PNG images containing public key JSON records and does not change the `.efe` encrypted file format.
+QR export uses PNG images containing public key JSON records and does not change the `.efe` encrypted file format.
 
 ## Required Top-Level Fields
 
@@ -110,6 +110,43 @@ Current files include an explicit format marker so future versions can detect an
 Legacy MVP files that stored `original_filename` in the public header are still supported for decryption where practical. Those files should be treated as legacy because they leak filename metadata. New files use encrypted metadata instead.
 
 When no explicit encrypted output path is provided, EFE also writes a generic random `.efe` package filename instead of deriving the output name from the source filename.
+
+## Experimental v2 Streaming Format
+
+EFE now includes an internal experimental v2 streaming binary format. It is not yet the default public format.
+
+v2 files begin with:
+
+```text
+EFE2
+```
+
+The v2 package layout is:
+
+```text
+magic bytes
+major/minor version bytes
+public header length
+public header JSON bytes
+encrypted metadata length
+encrypted metadata bytes
+chunk records
+authenticated footer record
+```
+
+The v2 public header contains technical fields only, including algorithm names, chunk size, nonce strategy, recipient key fingerprint, ephemeral public key, and nonces. It must not contain the original filename, original file size, document title, client names, user notes, or business context.
+
+The encrypted metadata block contains:
+
+- `metadata_version`
+- `original_filename`
+- `original_size`
+
+File contents are encrypted in authenticated chunks. Each chunk is authenticated with its chunk index, plaintext length, final-chunk flag, and public header hash. The final footer is authenticated separately and records the total plaintext size, chunk count, public header hash, and chunk-record hash. Decryption fails closed if the header, encrypted metadata, any chunk, or the footer is corrupted or truncated.
+
+The default v2 chunk size is 1 MiB. v2 decrypt auto-detection is implemented for files beginning with `EFE2`; v1 JSON files continue to decrypt through the existing v1 path.
+
+v2 is still experimental. It needs more adversarial and platform testing before it becomes the default format.
 
 ## Future Versioning Considerations
 

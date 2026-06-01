@@ -43,11 +43,11 @@ Required v1 work:
 
 ## v2 Streaming Binary Format
 
-The current MVP format is not streaming-friendly. EFE should design the `.efe` v2 streaming binary format before implementing it.
+The current default v1 format is not streaming-friendly. EFE now has an experimental `.efe` v2 streaming binary implementation behind an internal service/test option, but it is not yet the public default.
 
 Milestone intent:
 
-- design first, implementation later
+- design first, implementation behind a safe boundary before public default use
 - support large files without loading full plaintext or ciphertext into memory
 - keep original filename and original file size encrypted
 - authenticate every encrypted chunk
@@ -55,13 +55,13 @@ Milestone intent:
 - define total-file integrity and truncation detection
 - keep legacy v1 decrypt support where practical
 
-The v1 public release should either include streaming support or explicitly document conservative file size limits until streaming lands.
+The v1 public release should either promote streaming support after more review and adversarial testing or explicitly document conservative file size limits while v2 remains experimental.
 
 ## Near-Term Backlog
 
 - Review remaining `.efe` public header fields and remove avoidable plaintext metadata.
-- Decide whether v1 requires streaming encryption before release.
-- Review `docs/security/file-format-v2-streaming-design.md` before implementing streaming support.
+- Decide whether v1 release requires v2 streaming as the default or can ship with a documented size limit.
+- Continue reviewing `docs/security/file-format-v2-streaming-design.md` and the experimental implementation.
 - Extend failure-mode tests around corrupted package structures and file I/O interruptions.
 - Continue packaging work without adding installer, code signing, or auto-update until the application behavior is stable.
 - Prepare for independent security review before encouraging high-risk or regulated use.

@@ -37,7 +37,7 @@ See [`docs/security/`](docs/security/) for the threat model, crypto design, file
 - [Architecture Notes](docs/architecture.md)
 - [Testing Backlog](docs/backlog/testing.md)
 
-The roadmap keeps EFE local-first: core encryption/decryption should not require cloud infrastructure. Before a v1 public release, the `.efe` file format must be stabilized, metadata leakage must be reviewed, and large-file handling must be defined. Streaming large-file support is planned, but the current MVP format is not yet a streaming binary format.
+The roadmap keeps EFE local-first: core encryption/decryption should not require cloud infrastructure. Before a v1 public release, the `.efe` file format must be stabilized, metadata leakage must be reviewed, and large-file handling must be defined. Experimental v2 streaming support exists internally for testing, but v1 remains the default public format for now.
 
 ## Setup
 
@@ -164,7 +164,7 @@ When importing a contact key, efe checks that the public key is valid base64, de
 
 ## Encrypted File Format
 
-Encrypted files use a JSON `.efe` format. A `.efe` file is an encrypted attachment or file; it is not an email message and does not contain email client data.
+Encrypted files currently use the v1 JSON `.efe` format by default. A `.efe` file is an encrypted attachment or file; it is not an email message and does not contain email client data.
 
 Required top-level fields:
 
@@ -221,6 +221,8 @@ Older legacy MVP files that stored `original_filename` in the public header are 
 When no explicit encrypted output path is provided, EFE also uses a generic random `.efe` filename instead of deriving the package filename from the source filename.
 
 Decryption also fails if the file is invalid JSON, missing required fields, contains invalid base64 values, was encrypted for a different private key, or the private key passphrase is wrong.
+
+An experimental v2 binary streaming format exists behind an internal service/test option. It starts with `EFE2`, encrypts file metadata separately, encrypts file contents in authenticated chunks, and is intended for large-file testing. It is not yet the default CLI or GUI format.
 
 ## Data Layout
 

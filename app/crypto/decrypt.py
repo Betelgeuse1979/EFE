@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import x25519
 
 from app.config.settings import DECRYPTED_DIR
 from app.crypto.encrypt import ENCRYPTED_METADATA_MODE, FILE_FORMAT, _derive_file_key
+from app.crypto.file_format import is_v2_file, safe_output_filename
 from app.crypto.key_manager import load_private_key
 from app.exceptions import InvalidEfeFileError
 from app.file_io import atomic_write_bytes
@@ -25,7 +26,6 @@ REQUIRED_HEADER_FIELDS = {
     "ephemeral_public_key",
     "nonce",
 }
-FALLBACK_FILENAME = "decrypted_output"
 
 
 def _private_public_key_text(private_key: x25519.X25519PrivateKey) -> str:
@@ -44,6 +44,11 @@ def _decode_base64_field(value: str, field_name: str) -> bytes:
 
 
 def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes, bool]:
+    with input_path.open("rb") as input_file:
+        first_byte = input_file.read(1)
+    if first_byte != b"{":
+        raise InvalidEfeFileError("Unsupported encrypted file format.")
+
     try:
         payload = json.loads(input_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -71,19 +76,6 @@ def _load_encrypted_payload(input_path: Path) -> tuple[dict, bytes, bool]:
     return header, ciphertext, is_legacy
 
 
-def _safe_output_filename(filename: str | None) -> str:
-    if not filename or not isinstance(filename, str):
-        return FALLBACK_FILENAME
-    safe_name = Path(filename).name.strip()
-    if not safe_name or safe_name in {".", ".."}:
-        return FALLBACK_FILENAME
-    if len(safe_name) > 180:
-        suffix = Path(safe_name).suffix
-        stem_limit = max(1, 180 - len(suffix))
-        safe_name = f"{Path(safe_name).stem[:stem_limit]}{suffix}"
-    return safe_name
-
-
 def _unpack_plaintext_with_metadata(decrypted_payload: bytes) -> tuple[dict, bytes]:
     if len(decrypted_payload) < 4:
         return {}, decrypted_payload
@@ -109,6 +101,16 @@ def decrypt_file(
     private_key_path: Path | None = None,
     passphrase: bytes | None = None,
 ) -> Path:
+    if is_v2_file(input_path):
+        from app.crypto.streaming_decrypt import decrypt_streaming_file
+
+        return decrypt_streaming_file(
+            input_path,
+            output_path,
+            private_key_path=private_key_path,
+            passphrase=passphrase,
+        )
+
     private_key = (
         load_private_key(private_key_path, passphrase=passphrase)
         if private_key_path
@@ -142,7 +144,7 @@ def decrypt_file(
         metadata, plaintext = _unpack_plaintext_with_metadata(decrypted_payload)
 
     if output_path is None:
-        output_path = DECRYPTED_DIR / _safe_output_filename(metadata.get("original_filename"))
+        output_path = DECRYPTED_DIR / safe_output_filename(metadata.get("original_filename"))
 
     atomic_write_bytes(output_path, plaintext)
     return output_path

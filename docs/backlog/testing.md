@@ -18,7 +18,7 @@ Some items already have partial coverage. This backlog is intentionally broader 
 - Invalid base64 fields.
 - Zero-byte input files.
 - Very large files.
-- Documented file size limit if streaming is not implemented before v1.
+- Documented file size limit if streaming is not promoted before v1.
 
 ## Filename And Metadata Cases
 
@@ -41,29 +41,16 @@ Some items already have partial coverage. This backlog is intentionally broader 
 
 ## v2 Streaming Format Tests
 
-- Encrypt/decrypt a very large file without high memory use.
-- Corrupted binary public header.
-- Corrupted encrypted metadata block.
-- Corrupted chunk ciphertext.
-- Missing chunk.
-- Reordered chunk.
-- Duplicated chunk.
-- Truncated final chunk.
-- Missing footer or finalization marker.
-- Extra unauthenticated trailing bytes.
-- Wrong private key.
-- Wrong private key passphrase.
-- Interrupted streaming encryption.
-- Interrupted streaming decryption.
-- Low disk space during streaming encrypt/decrypt.
-- Network share disconnect during streaming encrypt/decrypt.
-- Removable drive disconnect during streaming encrypt/decrypt.
-- Unicode filename.
-- Very long filename.
-- Zero-byte file.
-- Many small files.
-- Legacy v1 decrypt still works after v2 support is added.
-- v1/v2 file format auto-detection rejects unknown formats safely.
+- Covered in unit tests: v2 roundtrip, magic-byte detection, encrypted filename metadata privacy, Unicode filename, long filename bounding, zero-byte file, multi-chunk large-file path, wrong private key, wrong passphrase, corrupted public header, corrupted encrypted metadata, corrupted chunk, missing chunk, truncated final chunk, tampered footer, temp-output cleanup, v1 decrypt compatibility, and service-level v2 selection.
+- Still needed: explicit reordered chunk test.
+- Still needed: duplicated chunk test.
+- Still needed: missing footer/finalization marker test.
+- Still needed: low disk space during streaming encrypt/decrypt.
+- Still needed: network share disconnect during streaming encrypt/decrypt.
+- Still needed: removable drive disconnect during streaming encrypt/decrypt.
+- Still needed: many small files.
+- Still needed: larger memory-use tests outside the normal unit suite.
+- Still needed: cross-version fixture files for v1/v2 compatibility.
 
 ## Contacts And Trust Workflow
 

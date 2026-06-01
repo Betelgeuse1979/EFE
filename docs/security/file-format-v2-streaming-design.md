@@ -1,8 +1,8 @@
 # EFE v2 Streaming Binary File Format Design
 
-This is a design document only. It does not describe implemented behavior yet.
+This document describes the intended v2 streaming design and the current experimental implementation. v2 support exists internally for testing, but v1 JSON/Base64 remains the default public CLI and GUI format.
 
-The current EFE MVP format is a JSON/Base64 `.efe` package. It now encrypts sensitive metadata such as the original filename and original file size, but encryption and decryption still read whole payloads into memory. The proposed v2 format is a streaming binary format intended to support large files safely.
+The current default EFE MVP format is a JSON/Base64 `.efe` package. It now encrypts sensitive metadata such as the original filename and original file size, but encryption and decryption still read whole payloads into memory. The v2 format is a streaming binary format intended to support large files safely after more review and adversarial testing.
 
 ## Design Goals
 
@@ -23,7 +23,7 @@ The current EFE MVP format is a JSON/Base64 `.efe` package. It now encrypts sens
 
 ## High-Level Layout
 
-Proposed file layout:
+Implemented experimental file layout:
 
 ```text
 magic bytes
@@ -36,7 +36,7 @@ chunk records...
 footer record
 ```
 
-All integers should use a fixed byte order, preferably big-endian, and fixed widths where practical.
+All integers use fixed-width big-endian fields in the experimental implementation.
 
 ## Magic Bytes
 
@@ -50,14 +50,14 @@ The first bytes should identify the file as an EFE v2 binary package. This is pu
 
 ## Format Version
 
-The binary format should include an explicit version field after the magic bytes, for example:
+The binary format includes explicit version bytes after the magic bytes:
 
 ```text
 major = 2
 minor = 0
 ```
 
-Readers should reject unsupported major versions and may support compatible minor versions if documented.
+Readers reject unsupported major versions and may support compatible minor versions later if documented.
 
 ## Public Header
 
@@ -117,7 +117,7 @@ The chunk index and lengths are public structural data, but they must be authent
 
 ## Default Chunk Size
 
-Recommended default chunk size:
+Implemented default chunk size:
 
 ```text
 1 MiB
@@ -135,9 +135,9 @@ A 64 KiB chunk size is also defensible for very memory-constrained environments,
 
 ChaCha20-Poly1305 uses a 12-byte nonce. Nonce reuse under the same key must be impossible.
 
-Recommended strategy:
+Implemented strategy:
 
-- Generate a random 32-byte file salt.
+- Use the ephemeral public key with an `EFE2` context as HKDF salt.
 - Derive separate keys for metadata encryption, chunk encryption, and final integrity from the X25519 shared secret using HKDF-SHA256.
 - Store a random 4-byte file nonce prefix in the public header.
 - Construct each chunk nonce as:
@@ -154,13 +154,11 @@ The implementation must reject chunk indexes that overflow the nonce space.
 
 Each chunk should be encrypted with ChaCha20-Poly1305.
 
-Per-chunk associated data should include:
+Per-chunk associated data includes:
 
-- magic/version
-- canonical public header bytes or public header hash
+- public header hash
 - chunk index
 - plaintext length
-- ciphertext length if available before encryption
 - final-chunk flag
 
 If any chunk ciphertext, tag, index, length, or associated public data is modified, that chunk must fail authentication.
@@ -180,13 +178,12 @@ The simpler implementation should be chosen and tested.
 
 Per-chunk authentication detects corruption at the chunk level, but it does not by itself prove that the full file is complete unless finalization is authenticated.
 
-The design should include a final encrypted/authenticated footer or manifest containing:
+The experimental implementation includes a final encrypted/authenticated footer containing:
 
 - total plaintext size
 - total chunk count
 - hash of public header bytes
-- hash or rolling MAC of chunk records, if needed
-- finalization marker
+- hash of chunk record headers and ciphertext
 
 Decryption must reject files with:
 
@@ -229,7 +226,7 @@ Reader behavior:
 - If the file begins as JSON and contains v1 fields, parse as legacy v1.
 - If neither v2 nor supported v1 is recognized, fail with a clear unsupported-format error.
 
-New encryption should write v2 only after v2 is implemented and selected as the default. Until then, the current v1 MVP format remains the implementation format.
+New user-facing encryption still writes v1 by default. v2 is available through an internal service/test option until more adversarial testing is complete.
 
 ## Migration And Upgrade Behavior
 
@@ -260,7 +257,7 @@ Suggested initial limits:
 - maximum encrypted metadata size: 1 MiB
 - maximum chunk count: implementation-defined but below nonce overflow
 
-If streaming is not implemented before v1 public release, README and file format docs must state a conservative file size limit for the v1 MVP format.
+If v2 streaming is not promoted before v1 public release, README and file format docs must state that v2 remains experimental and should not be treated as the default stable format.
 
 ## Failure Behavior
 
@@ -332,15 +329,13 @@ Encrypted metadata should hold sensitive file information needed after decryptio
 
 ## Implementation Notes For Later
 
-Implementation should come after this design is reviewed.
+Implementation exists experimentally and should continue to be reviewed before public default use.
 
-Suggested order:
+Suggested next order:
 
-1. Add parser/writer skeleton and fixtures.
-2. Add chunk nonce derivation tests.
-3. Add streaming encrypt with temp output.
-4. Add streaming decrypt with temp plaintext output.
-5. Add corrupted/truncated/reordered chunk tests.
-6. Add large-file memory-use tests.
-7. Add v1/v2 auto-detection tests.
-
+1. Add more binary parser/writer fixtures.
+2. Add direct chunk nonce derivation tests.
+3. Add crash/interruption tests for streaming encrypt and decrypt.
+4. Add more corrupted/truncated/reordered chunk tests.
+5. Add larger memory-use tests outside the normal unit suite.
+6. Add cross-platform package compatibility fixtures.
